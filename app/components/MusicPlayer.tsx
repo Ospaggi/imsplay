@@ -4,7 +4,7 @@
  * Impulse Tracker 스타일 DOS UI
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useROLPlayer } from "~/lib/hooks/useROLPlayer";
 import { useIMSPlayer } from "~/lib/hooks/useIMSPlayer";
 import ChannelVisualizer from "./ChannelVisualizer";
@@ -244,6 +244,40 @@ export default function MusicPlayer() {
 
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
 
+  // 재생 시간 추적
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const playStartTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (state?.isPlaying && !playStartTimeRef.current) {
+      playStartTimeRef.current = Date.now();
+      setElapsedSeconds(0);
+    } else if (!state?.isPlaying) {
+      playStartTimeRef.current = null;
+    }
+
+    if (state?.isPlaying) {
+      const interval = setInterval(() => {
+        if (playStartTimeRef.current) {
+          const elapsed = Math.floor((Date.now() - playStartTimeRef.current) / 1000);
+          setElapsedSeconds(elapsed);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [state?.isPlaying]);
+
+  // 시간 포맷팅 함수 (초 -> mm:ss)
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // 전체 시간 추정 (현재 진행률 기반)
+  const estimatedTotalSeconds = progress > 0 ? Math.floor(elapsedSeconds / (progress / 100)) : 0;
+
   // 샘플 리스트 아이템 생성
   const sampleListItems = MUSIC_SAMPLES.map((sample) => ({
     key: sample.musicFile,
@@ -373,7 +407,10 @@ export default function MusicPlayer() {
             {/* 진행률 */}
             <div className="mb-16">
               <div className="dos-text-primary mb-8">
-                진행률: {progress.toFixed(1)}%
+                {state?.isPlaying
+                  ? `재생시간: ${formatTime(elapsedSeconds)} / ${estimatedTotalSeconds > 0 ? formatTime(estimatedTotalSeconds) : '--:--'}`
+                  : '재생시간: --:-- / --:--'
+                }
               </div>
               <div className="dos-slider-bar">
                 <div className="dos-slider-fill" style={{ width: `${progress}%` }} />

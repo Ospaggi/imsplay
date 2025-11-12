@@ -165,10 +165,12 @@ export class IMSPlayer {
         if (this.loopEnabled) {
           this.curByte = 0;
           this.runningStatus = 0;
+          // 1틱 대기 후 다음 루프 시작 (0을 반환하면 do-while 무한 루프 발생)
+          return 1;
         } else {
           this.isPlaying = false;
+          return 0;
         }
-        return 0;
       }
 
       // 확장 딜레이 (0xF8 = 240틱 추가)

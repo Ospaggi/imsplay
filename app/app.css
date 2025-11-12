@@ -36,10 +36,10 @@
   --text-disabled: #808080;
 
   /* 3D borders */
-  --border-highlight: #FFFFFF;
-  --border-light: #DFDFDF;
-  --border-shadow: #808080;
-  --border-dark: #000000;
+  --border-highlight: #FFFFFF;  /* VGA 15: 흰색 */
+  --border-light: #FFFFFF;      /* VGA 15: 흰색 */
+  --border-shadow: #808080;     /* VGA 8: 회색 */
+  --border-dark: #000000;       /* VGA 0: 검정 */
 
   /* Selection */
   --bg-select: #000080;
@@ -352,7 +352,7 @@ body {
 }
 
 .dos-meter-label-left {
-  width: 140px;
+  width: 90px;
   height: 24px;
   font-size: 16px;
   color: var(--color-white);
