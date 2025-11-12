@@ -39,6 +39,22 @@ const MUSIC_SAMPLES: MusicSample[] = [
   { musicFile: "/AMG0015.IMS", format: "IMS" },
   { musicFile: "/AMG0018.IMS", format: "IMS" },
   { musicFile: "/AMG0024.IMS", format: "IMS" },
+  { musicFile: "/FF6-GW02.IMS", format: "IMS" },
+  { musicFile: "/GRAD1-1.IMS", format: "IMS" },
+  { musicFile: "/GRAD2-1.IMS", format: "IMS" },
+  { musicFile: "/GRAD2-2.IMS", format: "IMS" },
+  { musicFile: "/GRAD2-3.IMS", format: "IMS" },
+  { musicFile: "/GRAD2-4.IMS", format: "IMS" },
+  { musicFile: "/GRAD3-1.IMS", format: "IMS" },
+  { musicFile: "/GRAD3-2.IMS", format: "IMS" },
+  { musicFile: "/JAM-FIVE.IMS", format: "IMS" },
+  { musicFile: "/JAM-NADI.IMS", format: "IMS" },
+  { musicFile: "/MACROS!!.IMS", format: "IMS" },
+  { musicFile: "/MACROS2.IMS", format: "IMS" },
+  { musicFile: "/P_013.IMS", format: "IMS" },
+  { musicFile: "/SPI0082.IMS", format: "IMS" },
+  { musicFile: "/TWINBEE1.IMS", format: "IMS" },
+  { musicFile: "/TWINBEE2.IMS", format: "IMS" },
 
   // ROL 샘플
   // { musicFile: "/4JSTAMNT.ROL", format: "ROL" },
@@ -57,6 +73,30 @@ async function loadFileFromURL(url: string, filename: string): Promise<File> {
   const response = await fetch(url);
   const blob = await response.blob();
   return new File([blob], filename, { type: blob.type });
+}
+
+/**
+ * 음악 파일에 대응하는 BNK 파일 경로를 찾습니다.
+ * 동일한 이름의 BNK 파일이 있으면 그것을 사용하고, 없으면 STANDARD.BNK를 사용합니다.
+ */
+async function findMatchingBnkFile(musicFilePath: string): Promise<string> {
+  // 확장자를 제거하고 .BNK로 변경
+  const basePath = musicFilePath.substring(0, musicFilePath.lastIndexOf('.'));
+  const matchingBnkPath = `${basePath}.BNK`;
+
+  // 파일 존재 확인 (HEAD 요청)
+  try {
+    const response = await fetch(matchingBnkPath, { method: 'HEAD' });
+    if (response.ok) {
+      console.log(`[findMatchingBnkFile] ${matchingBnkPath} 찾음, 사용합니다.`);
+      return matchingBnkPath;
+    }
+  } catch (error) {
+    // 파일이 없으면 에러 발생, STANDARD.BNK 사용
+  }
+
+  console.log(`[findMatchingBnkFile] ${matchingBnkPath} 없음, STANDARD.BNK 사용`);
+  return BNK_FILE;
 }
 
 export default function MusicPlayer() {
@@ -110,9 +150,13 @@ export default function MusicPlayer() {
     try {
       const filename = samplePath.split("/").pop() || "sample";
 
+      // BNK 파일 경로 결정 (동일 이름 BNK 있으면 사용, 없으면 STANDARD.BNK)
+      const bnkPath = await findMatchingBnkFile(samplePath);
+      const bnkFilename = bnkPath.split("/").pop() || "STANDARD.BNK";
+
       const [musicFileObj, bnkFileObj] = await Promise.all([
         loadFileFromURL(samplePath, filename),
-        loadFileFromURL(BNK_FILE, "STANDARD.BNK"),
+        loadFileFromURL(bnkPath, bnkFilename),
       ]);
 
       // 샘플 파일은 별도 state에 저장 (사용자 업로드 GUI에 영향 없음)
@@ -224,7 +268,7 @@ export default function MusicPlayer() {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.6
+        {" "}IMS/ROL 웹플레이어 v1.7
         {format && ` - ${format} 모드`}
       </div>
 
