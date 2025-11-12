@@ -1,0 +1,574 @@
+/**
+ * MSDOS/Windows 3.x Style CSS
+ * 16-color VGA palette with 3D borders
+ */
+
+@font-face {
+  font-family: 'DungGeunMo';
+  src: url('/fonts/DungGeunMo.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+:root {
+  /* 16-color VGA/ANSI palette */
+  --color-black: #000000;
+  --color-maroon: #800000;
+  --color-green: #008000;
+  --color-olive: #808000;
+  --color-navy: #000080;
+  --color-purple: #800080;
+  --color-teal: #008080;
+  --color-silver: #C0C0C0;
+  --color-gray: #808080;
+  --color-red: #FF0000;
+  --color-lime: #00FF00;
+  --color-yellow: #FFFF00;
+  --color-blue: #0000FF;
+  --color-fuchsia: #FF00FF;
+  --color-aqua: #00FFFF;
+  --color-white: #FFFFFF;
+
+  /* UI colors */
+  --bg-main: #C0C0C0;
+  --text-main: #000000;
+  --text-emphasis: #000080;
+  --text-disabled: #808080;
+
+  /* 3D borders */
+  --border-highlight: #FFFFFF;
+  --border-light: #DFDFDF;
+  --border-shadow: #808080;
+  --border-dark: #000000;
+
+  /* Selection */
+  --bg-select: #000080;
+  --text-select: #FFFFFF;
+
+  /* Meters */
+  --meter-low: #00FF00;
+  --meter-mid: #FFFF00;
+  --meter-high: #FF0000;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'DungGeunMo', 'MS Sans Serif', 'Microsoft Sans Serif', sans-serif;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* === 3D BORDER UTILITIES === */
+
+/* Raised (볼록 - 버튼, 패널) */
+.raised {
+  border-top: 2px solid var(--border-highlight);
+  border-left: 2px solid var(--border-highlight);
+  border-right: 2px solid var(--border-dark);
+  border-bottom: 2px solid var(--border-dark);
+  background: var(--bg-main);
+}
+
+.raised-thick {
+  border-width: 2px;
+  border-style: solid;
+  border-top-color: var(--border-highlight);
+  border-left-color: var(--border-highlight);
+  border-right-color: var(--border-dark);
+  border-bottom-color: var(--border-dark);
+  background: var(--bg-main);
+}
+
+/* Inset (움푹 - 입력, 리스트) */
+.inset {
+  border-top: 2px solid var(--border-shadow);
+  border-left: 2px solid var(--border-shadow);
+  border-right: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+  background: var(--color-white);
+}
+
+.inset-deep {
+  border-top: 2px solid var(--border-dark);
+  border-left: 2px solid var(--border-dark);
+  border-right: 2px solid var(--border-highlight);
+  border-bottom: 2px solid var(--border-highlight);
+  background: var(--color-white);
+}
+
+/* === DOS UI COMPONENTS === */
+
+/* Container - 800x600 resolution */
+.dos-container {
+  width: 800px;
+  height: 600px;
+  margin: 20px auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Panel */
+.dos-panel {
+  padding: 6px;
+  margin: 4px 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dos-panel.flex-1 {
+  flex: 1;
+  min-height: 0;
+}
+
+.dos-panel-credits {
+  background: var(--color-teal);
+}
+
+.dos-panel-credits .dos-panel-title {
+  color: var(--color-white);
+}
+
+.dos-panel-credits .dos-panel-content {
+  background: var(--color-teal);
+}
+
+.dos-panel-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dos-panel-title {
+  font-weight: normal;
+  margin-bottom: 4px;
+  color: var(--text-main);
+  font-size: 16px;
+}
+
+/* Button */
+.dos-button {
+  padding: 3px 8px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: normal;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--text-main);
+  background: var(--bg-main);
+  border-top: 2px solid var(--border-highlight);
+  border-left: 2px solid var(--border-highlight);
+  border-right: 2px solid var(--border-dark);
+  border-bottom: 2px solid var(--border-dark);
+  outline: none;
+}
+
+.dos-button:hover:not(:disabled) {
+  background: var(--border-light);
+}
+
+.dos-button:active:not(:disabled) {
+  /* Pressed effect - inset */
+  border-top: 2px solid var(--border-dark);
+  border-left: 2px solid var(--border-dark);
+  border-right: 2px solid var(--border-highlight);
+  border-bottom: 2px solid var(--border-highlight);
+  padding: 4px 7px 2px 9px; /* Shift content down-right */
+}
+
+.dos-button:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.dos-button-active {
+  background: var(--bg-select);
+  color: var(--text-select);
+  font-weight: normal;
+}
+
+.dos-button-play {
+  background: var(--color-blue);
+  color: var(--color-white);
+}
+
+.dos-button-play:hover:not(:disabled) {
+  background: var(--color-aqua);
+  color: var(--color-black);
+}
+
+.dos-button-play:disabled {
+  color: var(--color-white);
+  opacity: 0.6;
+}
+
+.dos-button-pause {
+  background: var(--color-gray);
+  color: var(--color-white);
+}
+
+.dos-button-pause:hover:not(:disabled) {
+  background: var(--color-silver);
+  color: var(--color-white);
+}
+
+.dos-button-pause:disabled {
+  color: var(--color-white);
+  opacity: 0.6;
+}
+
+.dos-button-stop {
+  background: var(--color-red);
+  color: var(--color-white);
+}
+
+.dos-button-stop:hover:not(:disabled) {
+  background: var(--color-fuchsia);
+  color: var(--color-white);
+}
+
+.dos-button-stop:disabled {
+  color: var(--color-white);
+  opacity: 0.6;
+}
+
+/* List */
+.dos-list {
+  background: var(--color-white);
+  border-top: 2px solid var(--border-shadow);
+  border-left: 2px solid var(--border-shadow);
+  border-right: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dos-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.dos-list-item {
+  padding: 2px 4px;
+  cursor: pointer;
+  color: var(--text-main);
+  font-size: 16px;
+  font-weight: normal;
+}
+
+.dos-list-item:hover {
+  background: var(--bg-main);
+}
+
+.dos-list-item-selected {
+  background: var(--bg-select);
+  color: var(--text-select);
+}
+
+/* Badge */
+.dos-badge {
+  display: inline-block;
+  padding: 1px 3px;
+  font-weight: normal;
+  text-transform: uppercase;
+  font-size: 16px;
+  margin-right: 2px;
+}
+
+.dos-badge-rol {
+  background: var(--color-green);
+  color: var(--color-white);
+}
+
+.dos-badge-ims {
+  background: var(--color-navy);
+  color: var(--color-white);
+}
+
+/* Slider */
+.dos-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.dos-slider-label {
+  min-width: 50px;
+  font-weight: normal;
+  color: var(--text-main);
+  font-size: 16px;
+}
+
+.dos-slider-bar {
+  flex: 1;
+  height: 16px;
+  position: relative;
+  background: var(--color-white);
+  border-top: 2px solid var(--border-shadow);
+  border-left: 2px solid var(--border-shadow);
+  border-right: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+  overflow: hidden;
+}
+
+.dos-slider-fill {
+  height: 100%;
+  background: var(--color-navy);
+  transition: width 0.1s linear;
+}
+
+.dos-slider-value {
+  min-width: 40px;
+  text-align: right;
+  font-weight: normal;
+  color: var(--text-main);
+  font-size: 16px;
+}
+
+/* Meter - Horizontal LED Segments */
+.dos-meter-horizontal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.dos-meter-label-left {
+  width: 140px;
+  height: 24px;
+  font-size: 16px;
+  color: var(--color-white);
+  font-weight: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--color-gray);
+  border-top: 2px solid var(--border-dark);
+  border-left: 2px solid var(--border-dark);
+  border-right: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+}
+
+.dos-meter-segments {
+  display: flex;
+  gap: 1px;
+  flex: 1;
+}
+
+.dos-meter-segment {
+  flex: 1;
+  height: 12px;
+  background: var(--border-shadow);
+  border-top: 1px solid var(--border-light);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-shadow);
+  border-bottom: 1px solid var(--border-shadow);
+}
+
+.dos-meter-segment-low {
+  background: var(--meter-low);
+  border-top: 1px solid var(--color-white);
+  border-left: 1px solid var(--color-white);
+  border-right: 1px solid var(--border-shadow);
+  border-bottom: 1px solid var(--border-shadow);
+}
+
+.dos-meter-segment-mid {
+  background: var(--meter-mid);
+  border-top: 1px solid var(--color-white);
+  border-left: 1px solid var(--color-white);
+  border-right: 1px solid var(--border-shadow);
+  border-bottom: 1px solid var(--border-shadow);
+}
+
+.dos-meter-segment-high {
+  background: var(--meter-high);
+  border-top: 1px solid var(--color-white);
+  border-left: 1px solid var(--color-white);
+  border-right: 1px solid var(--border-shadow);
+  border-bottom: 1px solid var(--border-shadow);
+}
+
+/* Title bar */
+.dos-title-bar {
+  background: var(--color-blue);
+  color: var(--color-white);
+  padding: 5px 8px;
+  font-weight: normal;
+  text-transform: uppercase;
+  font-size: 16px;
+  border-top: 2px solid var(--border-highlight);
+  border-left: 2px solid var(--border-highlight);
+  border-right: 2px solid var(--border-dark);
+  border-bottom: 2px solid var(--border-dark);
+  flex-shrink: 0;
+}
+
+.dos-title-bar a {
+  color: var(--color-yellow);
+  text-decoration: none;
+  font-weight: normal;
+}
+
+.dos-title-bar a:hover {
+  color: var(--color-white);
+  text-decoration: underline;
+}
+
+/* Status bar */
+.dos-status-bar {
+  background: var(--color-fuchsia);
+  color: var(--color-white);
+  padding: 3px 8px;
+  display: flex;
+  justify-content: space-between;
+  border-top: 2px solid var(--color-white);
+  border-left: 2px solid var(--color-white);
+  border-right: 2px solid var(--border-dark);
+  border-bottom: 2px solid var(--border-dark);
+  font-size: 16px;
+  font-weight: normal;
+  flex-shrink: 0;
+}
+
+.dos-status-item {
+  margin: 0 4px;
+}
+
+/* Grid */
+.dos-grid {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dos-grid-2col {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.dos-grid-2col > div {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Message */
+.dos-message {
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-top: 2px solid var(--border-shadow);
+  border-left: 2px solid var(--border-shadow);
+  border-right: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+}
+
+.dos-message-info {
+  color: var(--color-navy);
+}
+
+.dos-message-error {
+  color: var(--color-red);
+  font-weight: normal;
+}
+
+/* Text utilities */
+.dos-text-primary {
+  color: var(--text-main);
+}
+
+.dos-text-secondary {
+  color: var(--text-disabled);
+}
+
+/* Utility classes */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.gap-12 {
+  gap: 12px;
+}
+
+.mb-8 {
+  margin-bottom: 8px;
+}
+
+.mb-16 {
+  margin-bottom: 8px;
+}
+
+.mt-8 {
+  margin-top: 8px;
+}
+
+.space-between {
+  justify-content: space-between;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.w-full {
+  width: 100%;
+}
+
+/* Links */
+.dos-link {
+  color: var(--color-yellow);
+  text-decoration: none;
+  font-weight: normal;
+}
+
+.dos-link:hover {
+  color: var(--color-white);
+  text-decoration: underline;
+}
+
+.dos-link-credits {
+  color: var(--color-aqua);
+  text-decoration: none;
+  font-weight: normal;
+  font-size: 16px;
+}
+
+.dos-link-credits:hover {
+  color: var(--color-white);
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dos-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
