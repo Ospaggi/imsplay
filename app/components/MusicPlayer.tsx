@@ -224,7 +224,7 @@ export default function MusicPlayer() {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.5
+        {" "}IMS/ROL 웹플레이어 v1.6
         {format && ` - ${format} 모드`}
       </div>
 
