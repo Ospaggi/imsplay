@@ -75,6 +75,13 @@ export class ROLPlayer {
       this.PCH[i] = 0;
     }
 
+    // DBOPL 내부 버퍼를 비우기 위해 더미 샘플 생성
+    console.log("[ROL initialize] DBOPL 버퍼 비우기 시작...");
+    for (let i = 0; i < 10; i++) {
+      this.oplEngine.generate(512);
+    }
+    console.log("[ROL initialize] DBOPL 버퍼 비우기 완료");
+
     this.CUR_BYTE = 0;
     this.rewind();
   }

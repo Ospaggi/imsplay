@@ -370,6 +370,11 @@ body {
   padding-left: 4px;
 }
 
+.dos-meter-label-missing {
+  background: var(--color-red);
+  color: var(--color-white);
+}
+
 .dos-meter-segments {
   display: flex;
   gap: 1px;

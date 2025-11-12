@@ -137,6 +137,10 @@ export function useIMSPlayer({
         initializeAudioProcessor(audioContext);
         console.log("[initializePlayer] 오디오 프로세서 초기화 완료");
 
+        // 샘플 생성 카운터 초기화 (이전 재생의 잔여 값 제거)
+        lenGenRef.current = 0;
+        console.log("[initializePlayer] lenGenRef 초기화 완료");
+
         // 초기 상태 설정
         console.log("[initializePlayer] 상태 설정 중...");
         fileNameRef.current = imsFile.name; // fileNameRef 업데이트

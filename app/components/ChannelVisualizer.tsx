@@ -22,7 +22,7 @@ export default function ChannelVisualizer({
     <DosPanel className="flex-1">
       <div className="flex-col">
         {channelVolumes.map((volume, index) => {
-          const label = instrumentNames?.[index] || `채널 ${String(index + 1).padStart(2, '0')}`;
+          const label = instrumentNames?.[index] || "";
 
           return (
             <DosMeter

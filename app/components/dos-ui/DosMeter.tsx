@@ -50,9 +50,14 @@ export default function DosMeter({ label, value, maxValue = 127 }: DosMeterProps
   const totalSegments = 32;
   const filledSegments = Math.round((percentage / 100) * totalSegments);
 
+  // 뱅크에 없는 악기 체크 ("!"로 시작)
+  const isMissing = label.startsWith("!");
+  const displayLabel = isMissing ? label.substring(1) : label;
+  const labelClass = isMissing ? "dos-meter-label-left dos-meter-label-missing" : "dos-meter-label-left";
+
   return (
     <div className="dos-meter-horizontal">
-      <div className="dos-meter-label-left">{label}</div>
+      <div className={labelClass}>{displayLabel}</div>
       <div className="dos-meter-segments">
         {Array.from({ length: totalSegments }).map((_, index) => {
           const isFilled = index < filledSegments;

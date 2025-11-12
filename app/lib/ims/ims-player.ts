@@ -59,6 +59,7 @@ export class IMSPlayer {
     await this.oplEngine.init(sampleRate);
     this.oplEngine.setMode(this.imsData.dMode);
 
+    // 모든 채널 초기화
     for (let i = 0; i < this.imsData.chNum; i++) {
       this.curVol[i] = 0;
       this.displayVolumes[i] = 0;
@@ -99,6 +100,9 @@ export class IMSPlayer {
    * 이벤트 처리 (TimeOut의 switch 부분)
    */
   private processEvent(): void {
+    // 재생 시작 후 첫 10개 이벤트 로깅
+    const shouldLog = this.curByte < 100;
+
     // Status byte 읽기
     let idcode = this.readByte();
 
@@ -118,6 +122,10 @@ export class IMSPlayer {
 
     // 이벤트 타입 추출 (상위 4비트)
     const eventType = (idcode & 0xf0) as IMSEventType;
+
+    if (shouldLog) {
+      console.log(`[processEvent] curByte:${this.curByte} eventType:0x${eventType.toString(16)} ch:${ch} idcode:0x${idcode.toString(16)}`);
+    }
 
     // 이벤트 처리
     switch (eventType) {
@@ -158,8 +166,8 @@ export class IMSPlayer {
       const ch = this.readByte();
       this.curByte++;
 
-      // 루프 마커 체크
-      if (this.readByte() === 0xfc) {
+      // 루프 마커 체크 (0xfc)
+      if (ch === 0xfc) {
         if (this.loopEnabled) {
           this.curByte = 0;
           this.runningStatus = 0;
@@ -193,9 +201,29 @@ export class IMSPlayer {
     const insIndex = this.readByte();
     this.curByte++;
 
+    const shouldLog = this.curByte < 100;
+
     const params = this.bnkData.get(insIndex);
-    if (params) {
-      this.oplEngine.setVoiceTimbre(ch, params);
+    if (insIndex < this.imsData.insNames.length) {
+      const insName = this.imsData.insNames[insIndex];
+      if (params) {
+        this.oplEngine.setVoiceTimbre(ch, params);
+        // 악기명 업데이트 (화면 표시용)
+        this.channelInstruments[ch] = insName;
+        if (shouldLog) {
+          console.log(`[handleInstrumentChange] ch:${ch} insIndex:${insIndex} insName:${insName} ✓`);
+        }
+      } else {
+        // 뱅크에서 악기를 찾을 수 없는 경우
+        this.channelInstruments[ch] = "!" + insName;
+        // 채널을 끄고 볼륨을 0으로 설정 (이상한 소리 방지)
+        this.oplEngine.noteOff(ch);
+        this.oplEngine.setVoiceVolume(ch, 0);
+        this.curVol[ch] = 0;
+        console.warn(`[handleInstrumentChange] ch:${ch} insIndex:${insIndex} insName:${insName} - 뱅크에 악기 없음! 채널 뮤트`);
+      }
+    } else {
+      console.warn(`[handleInstrumentChange] ch:${ch} insIndex:${insIndex} - insIndex가 범위를 벗어남!`);
     }
   }
 
@@ -265,6 +293,8 @@ export class IMSPlayer {
     const volume = this.readByte();
     this.curByte++;
 
+    const shouldLog = this.curByte < 200;
+
     this.oplEngine.noteOff(ch);
 
     if (this.curVol[ch] !== volume) {
@@ -274,6 +304,10 @@ export class IMSPlayer {
 
     // 디스플레이 볼륨 설정 (note on 시 최대로)
     this.displayVolumes[ch] = volume;
+
+    if (shouldLog) {
+      console.log(`[handleNoteOn1] ch:${ch} pitch:${pitch} volume:${volume} curVol:${this.curVol[ch]}`);
+    }
 
     // IMS 파일은 이미 칩 기준(CHIP_MID_C=48)으로 저장되어 있으므로
     // noteOn의 MID_C-CHIP_MID_C 변환(-12)을 상쇄하기 위해 +12 필요
@@ -290,6 +324,8 @@ export class IMSPlayer {
     const volume = this.readByte();
     this.curByte++;
 
+    const shouldLog = this.curByte < 200;
+
     this.oplEngine.noteOff(ch);
 
     // 볼륨이 0이 아닐 때만 노트 온
@@ -300,9 +336,16 @@ export class IMSPlayer {
       }
       // 디스플레이 볼륨 설정 (note on 시 최대로)
       this.displayVolumes[ch] = volume;
+
+      if (shouldLog) {
+        console.log(`[handleNoteOn2] ch:${ch} pitch:${pitch} volume:${volume} curVol:${this.curVol[ch]}`);
+      }
+
       // IMS 파일은 이미 칩 기준(CHIP_MID_C=48)으로 저장되어 있으므로
       // noteOn의 MID_C-CHIP_MID_C 변환(-12)을 상쇄하기 위해 +12 필요
       this.oplEngine.noteOn(ch, pitch + 12);
+    } else if (shouldLog) {
+      console.log(`[handleNoteOn2] ch:${ch} pitch:${pitch} volume:0 - 스킵`);
     }
   }
 
@@ -379,8 +422,10 @@ export class IMSPlayer {
     this.isPlaying = false;
     this.curByte = 0;
     this.runningStatus = 0;
-    for (let i = 0; i < this.imsData.chNum; i++) {
+    // 모든 채널 끄기
+    for (let i = 0; i < 11; i++) {
       this.oplEngine.noteOff(i);
+      this.oplEngine.setVoiceVolume(i, 0);
     }
   }
 
@@ -391,6 +436,12 @@ export class IMSPlayer {
     this.curByte = 0;
     this.runningStatus = 0;
     this.currentTempo = this.imsData.basicTempo;
+
+    // 모든 채널 끄기 (루프 시작 전 깨끗한 상태)
+    for (let i = 0; i < 11; i++) {
+      this.oplEngine.noteOff(i);
+      this.oplEngine.setVoiceVolume(i, 0);
+    }
   }
 
   /**
@@ -406,7 +457,7 @@ export class IMSPlayer {
       tempo: this.SPEED,
       currentTempo: this.currentTempo,
       currentVolumes: this.displayVolumes.slice(0, this.imsData.chNum),
-      instrumentNames: this.imsData.insNames.slice(0, this.imsData.chNum),
+      instrumentNames: this.channelInstruments.slice(0, this.imsData.chNum),
     };
   }
 
