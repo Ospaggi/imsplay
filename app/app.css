@@ -640,21 +640,5 @@ body {
 
   .dos-meter-label-left {
     width: 80px;
-    font-size: 14px;
-  }
-
-  body {
-    font-size: 14px;
-  }
-
-  .dos-button,
-  .dos-list-item,
-  .dos-panel-title,
-  .dos-slider-label,
-  .dos-slider-value,
-  .dos-title-bar,
-  .dos-status-bar,
-  .dos-badge {
-    font-size: 14px;
   }
 }
