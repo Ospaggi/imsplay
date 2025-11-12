@@ -202,7 +202,13 @@ export class OPLEngine {
         pitchBend = constants.MAX_PITCH;
       }
       this.vPitchBend[voice] = pitchBend;
-      this.updateFNums(voice);
+
+      // voiceNote가 0이면 UpdateFNums를 호출하지 않음
+      // (pitch=0일 때 octave=-1이 되어 잘못된 주파수가 설정되는 문제 방지)
+      // noteOn이 호출될 때 저장된 pitchBend 값으로 올바른 주파수가 설정됨
+      if (this.voiceNote[voice] !== 0) {
+        this.updateFNums(voice);
+      }
     }
   }
 

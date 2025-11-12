@@ -101,9 +101,6 @@ export class IMSPlayer {
    * 이벤트 처리 (TimeOut의 switch 부분)
    */
   private processEvent(): void {
-    // 재생 시작 후 첫 10개 이벤트 로깅
-    const shouldLog = this.curByte < 100;
-
     // Status byte 읽기
     let idcode = this.readByte();
 
@@ -123,10 +120,6 @@ export class IMSPlayer {
 
     // 이벤트 타입 추출 (상위 4비트)
     const eventType = (idcode & 0xf0) as IMSEventType;
-
-    if (shouldLog) {
-      console.log(`[processEvent] curByte:${this.curByte} eventType:0x${eventType.toString(16)} ch:${ch} idcode:0x${idcode.toString(16)}`);
-    }
 
     // 이벤트 처리
     switch (eventType) {
@@ -238,7 +231,7 @@ export class IMSPlayer {
   }
 
   /**
-   * 피치 벤드 (pit_rt 포팅, IMS.C:128-135)
+   * 피치 벤드 (pit_rt 포팅, IMS.C:294-301)
    */
   private handlePitchBend(ch: number): void {
     // Little-endian 2바이트 읽기
@@ -255,6 +248,11 @@ export class IMSPlayer {
 
     // 1비트 오른쪽 시프트 (0x0000-0x3FFF 범위로)
     data1 = data1 >> 1;
+
+    const shouldLog = this.curByte < 200;
+    if (shouldLog) {
+      console.log(`[handlePitchBend] ch:${ch} byte1:${byte1} byte2:${byte2} pitchBend:${data1} (0x${data1.toString(16)}) instrument:${this.channelInstruments[ch] || '(none)'}`);
+    }
 
     this.oplEngine.setVoicePitch(ch, data1);
   }
