@@ -312,28 +312,84 @@ body {
 }
 
 .dos-slider-label {
-  min-width: 50px;
+  min-width: 88px;
   font-weight: normal;
   color: var(--text-main);
   font-size: 16px;
 }
 
-.dos-slider-bar {
+.dos-slider-track {
   flex: 1;
-  height: 16px;
+  height: 20px;
   position: relative;
-  background: var(--color-white);
-  border-top: 2px solid var(--border-shadow);
-  border-left: 2px solid var(--border-shadow);
-  border-right: 2px solid var(--border-light);
-  border-bottom: 2px solid var(--border-light);
-  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
-.dos-slider-fill {
-  height: 100%;
-  background: var(--color-navy);
-  transition: width 0.1s linear;
+.dos-slider-input {
+  width: 100%;
+  height: 20px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* Slider track */
+.dos-slider-input::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  background: var(--color-black);
+  border-top: 2px solid var(--border-shadow);
+  border-left: 2px solid var(--border-shadow);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dos-slider-input::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  background: var(--color-black);
+  border-top: 2px solid var(--border-shadow);
+  border-left: 2px solid var(--border-shadow);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Slider thumb */
+.dos-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 20px;
+  background: var(--color-silver);
+  border-top: 2px solid var(--border-light);
+  border-left: 2px solid var(--border-light);
+  border-right: 2px solid var(--border-shadow);
+  border-bottom: 2px solid var(--border-shadow);
+  cursor: pointer;
+  margin-top: -6px;
+}
+
+.dos-slider-input::-moz-range-thumb {
+  width: 16px;
+  height: 20px;
+  background: var(--color-silver);
+  border-top: 2px solid var(--border-light);
+  border-left: 2px solid var(--border-light);
+  border-right: 2px solid var(--border-shadow);
+  border-bottom: 2px solid var(--border-shadow);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.dos-slider-input::-webkit-slider-thumb:active {
+  background: var(--color-white);
+}
+
+.dos-slider-input::-moz-range-thumb:active {
+  background: var(--color-white);
 }
 
 .dos-slider-value {
@@ -342,6 +398,43 @@ body {
   font-weight: normal;
   color: var(--text-main);
   font-size: 16px;
+}
+
+/* Progress Bar */
+.dos-progress-bar {
+  position: relative;
+  height: 24px;
+  background: var(--color-white);
+  border-top: 2px solid var(--border-shadow);
+  border-left: 2px solid var(--border-shadow);
+  border-right: 2px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+  overflow: hidden;
+}
+
+.dos-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--color-navy);
+  transition: width 0.1s linear;
+}
+
+.dos-progress-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-white);
+  font-size: 16px;
+  font-weight: normal;
+  z-index: 1;
+  mix-blend-mode: difference;
 }
 
 /* Meter - Horizontal LED Segments */

@@ -29,6 +29,7 @@ interface UseIMSPlayerReturn {
   // 설정 제어
   setVolume: (volume: number) => void;
   setTempo: (tempo: number) => void;
+  setMasterVolume: (volume: number) => void;
   setLoopEnabled: (enabled: boolean) => void;
   toggleChannel: (ch: number) => void;
 }
@@ -50,6 +51,7 @@ export function useIMSPlayer({
   const playerRef = useRef<IMSPlayer | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
   const uiUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileNameRef = useRef<string>("");
 
@@ -219,7 +221,14 @@ export function useIMSPlayer({
       }
     };
 
-    processor.connect(audioContext.destination);
+    // GainNode 생성 및 연결 (마스터 볼륨용)
+    const gainNode = audioContext.createGain();
+    gainNode.gain.value = 0.5; // 기본값 50%
+    gainNodeRef.current = gainNode;
+
+    // processor → gainNode → destination
+    processor.connect(gainNode);
+    gainNode.connect(audioContext.destination);
     processorRef.current = processor;
   }, []);
 
@@ -400,6 +409,13 @@ export function useIMSPlayer({
     }
   }, []);
 
+  const setMasterVolume = useCallback((volume: number) => {
+    if (gainNodeRef.current) {
+      // 0-100 범위를 0.0-1.0으로 변환
+      gainNodeRef.current.gain.value = volume / 100;
+    }
+  }, []);
+
   return {
     state,
     isLoading,
@@ -409,6 +425,7 @@ export function useIMSPlayer({
     stop,
     setVolume,
     setTempo,
+    setMasterVolume,
     setLoopEnabled,
     toggleChannel,
   };

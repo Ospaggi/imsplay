@@ -113,6 +113,7 @@ export default function MusicPlayer() {
 
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [autoPlay, setAutoPlay] = useState<string | null>(null); // 자동 재생할 파일 경로
+  const [masterVolume, setMasterVolumeState] = useState<number>(50); // 마스터 볼륨 상태
 
   // 플레이어에 전달되는 파일 (사용자 파일 우선, 없으면 샘플)
   const musicFile = userMusicFile || sampleMusicFile;
@@ -141,7 +142,7 @@ export default function MusicPlayer() {
 
   // 현재 활성 플레이어 선택
   const player = format === "ROL" ? rolPlayer : imsPlayer;
-  const { state, isLoading, error, play, pause, stop, setVolume, setTempo } = player;
+  const { state, isLoading, error, play, pause, stop, setVolume, setTempo, setMasterVolume } = player;
 
   /**
    * 샘플 음악 로드
@@ -222,6 +223,15 @@ export default function MusicPlayer() {
     }
   }, [autoPlay, state, play, format, selectedSample, musicFile]);
 
+  /**
+   * 플레이어 초기화 시 마스터 볼륨 설정
+   */
+  useEffect(() => {
+    if (state && setMasterVolume) {
+      setMasterVolume(masterVolume);
+    }
+  }, [state, musicFile]);
+
   // progress bar (currentByte/totalSize 기반)
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
 
@@ -269,7 +279,7 @@ export default function MusicPlayer() {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.9
+        {" "}IMS/ROL 웹플레이어 v1.13
         {format && ` - ${format} 모드`}
       </div>
 
@@ -348,64 +358,55 @@ export default function MusicPlayer() {
               items={sampleListItems}
               selectedKey={selectedSample}
             />
-            {isLoadingSample && (
-              <div className="dos-message dos-message-info">
-                샘플 로딩중...
-              </div>
-            )}
           </DosPanel>
 
           {/* 재생 컨트롤 */}
           <DosPanel style={{ height: '140px', flexShrink: 0 }}>
             {/* 진행률 */}
             <div className="mb-16">
-              <div className="dos-text-primary mb-8 flex space-between">
-                <span>
+              <div className="dos-progress-bar">
+                <div className="dos-progress-fill" style={{ width: `${progress}%` }} />
+                <div className="dos-progress-text">
                   {state?.isPlaying
-                    ? `재생시간: ${formatTime(elapsedSeconds)} / ${totalDuration > 0 ? formatTime(Math.floor(totalDuration)) : '--:--'}`
-                    : '재생시간: --:-- / --:--'
+                    ? `${formatTime(elapsedSeconds)} / ${totalDuration > 0 ? formatTime(Math.floor(totalDuration)) : '--:--'}`
+                    : '--:-- / --:--'
                   }
-                </span>
-                <span>
-                  BPM: {state?.currentTempo ? Math.floor(state.currentTempo) : '--'}
-                </span>
-              </div>
-              <div className="dos-slider-bar">
-                <div className="dos-slider-fill" style={{ width: `${progress}%` }} />
+                </div>
               </div>
             </div>
 
-            {/* 볼륨과 템포 */}
-            <div className="flex gap-8">
-              <div style={{ flex: 1 }}>
-                <DosSlider
-                  label="볼륨"
-                  value={state?.volume ?? 100}
-                  min={0}
-                  max={127}
-                  onChange={setVolume}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <DosSlider
-                  label="템포"
-                  value={state?.tempo ?? 100}
-                  min={25}
-                  max={400}
-                  onChange={setTempo}
-                  unit="%"
-                />
-              </div>
+            {/* 볼륨, 템포, 마스터볼륨 */}
+            <div>
+              <DosSlider
+                label="OPL 볼륨"
+                value={state?.volume ?? 100}
+                min={0}
+                max={127}
+                onChange={setVolume}
+              />
+              <DosSlider
+                label="템포"
+                value={state?.tempo ?? 100}
+                min={25}
+                max={400}
+                onChange={setTempo}
+                unit="%"
+              />
+              <DosSlider
+                label="마스터 볼륨"
+                value={masterVolume}
+                min={0}
+                max={100}
+                onChange={(vol) => {
+                  setMasterVolumeState(vol);
+                  setMasterVolume(vol);
+                }}
+                unit="%"
+              />
             </div>
           </DosPanel>
 
-          {/* 로딩/에러 메시지 */}
-          {isLoading && (
-            <div className="dos-message dos-message-info">
-              {format} 파일 로딩중...
-            </div>
-          )}
-
+          {/* 에러 메시지 */}
           {error && (
             <div className="dos-message dos-message-error">
               오류: {error}
@@ -465,10 +466,7 @@ export default function MusicPlayer() {
           상태: {state ? (state.isPlaying ? "재생중" : state.isPaused ? "일시정지" : "정지") : "대기"}
         </div>
         <div className="dos-status-item">
-          템포: {state ? `${state.tempo}%` : "100%"}
-        </div>
-        <div className="dos-status-item">
-          볼륨: {state ? state.volume : "100"}
+          BPM: {state?.currentTempo ? Math.floor(state.currentTempo) : '--'}
         </div>
       </div>
     </div>

@@ -19,29 +19,17 @@ export default function DosSlider({
   onChange,
   unit = "",
 }: DosSliderProps) {
-  const percentage = ((value - min) / (max - min)) * 100;
-
   return (
     <div className="dos-slider-container">
       <div className="dos-slider-label">{label}</div>
-      <div className="dos-slider-bar" style={{ position: 'relative' }}>
-        <div className="dos-slider-fill" style={{ width: `${percentage}%` }} />
+      <div className="dos-slider-track">
         <input
           type="range"
+          className="dos-slider-input"
           min={min}
           max={max}
           value={value}
           onChange={(e) => onChange(parseInt(e.target.value))}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            opacity: 0,
-            width: '100%',
-            height: '100%',
-            cursor: 'pointer',
-            margin: 0,
-          }}
         />
       </div>
       <div className="dos-slider-value">

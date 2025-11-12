@@ -369,7 +369,18 @@ export class IMSPlayer {
    */
   controlVolume(v: number): void {
     this.VOL_C = v;
-    // TODO: 각 채널의 볼륨을 조정해야 함 (ROL과 유사하게)
+
+    // ROL 플레이어와 유사하게 각 채널에 볼륨 적용
+    for (let i = 0; i < this.imsData.chNum; i++) {
+      const vol = this.curVol[i];
+      if (Math.floor((this.curVol[i] * this.VOL_C) / 100)) {
+        this.curVol[i] = Math.floor((this.curVol[i] * this.VOL_C) / 100);
+      } else {
+        this.curVol[i] = 0;
+      }
+      this.oplEngine.setVoiceVolume(i, this.curVol[i]);
+      this.curVol[i] = vol;  // 원래 값 복원
+    }
   }
 
   /**
