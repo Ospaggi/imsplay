@@ -346,11 +346,18 @@ export class ROLPlayer {
    * 재생 상태 가져오기
    */
   getState(): PlaybackState {
+    // 전체 재생 시간 계산
+    // ticks per second = tpb * basicTempo / 60
+    // totalDuration = totalSize / ticks_per_second
+    const ticksPerSecond = this.rolData.tpb * this.rolData.basicTempo / 60;
+    const totalDuration = this.TOTAL_SIZE / ticksPerSecond;
+
     return {
       isPlaying: this.isPlaying,
       isPaused: !this.isPlaying && this.CUR_BYTE > 0,
       currentByte: this.CUR_BYTE,
       totalSize: this.TOTAL_SIZE,
+      totalDuration: totalDuration,
       volume: this.VOL_C,
       tempo: this.SPEED,
       keyTranspose: this.KEY,

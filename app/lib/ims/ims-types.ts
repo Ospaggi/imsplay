@@ -82,13 +82,16 @@ export interface IMSPlaybackState {
   /** 전체 바이트 크기 */
   totalSize: number;
 
+  /** 전체 재생 시간 (초) */
+  totalDuration?: number;
+
   /** 전체 볼륨 (0-127) */
   volume: number;
 
   /** 템포 배속 (100 = 1x) */
   tempo: number;
 
-  /** 현재 템포 값 */
+  /** 현재 템포 값 (BPM) */
   currentTempo: number;
 
   /** 각 채널의 현재 볼륨 */

@@ -142,6 +142,7 @@ export interface PlaybackState {
   isPaused: boolean;
   currentByte: number;      // 현재 재생 위치 (틱)
   totalSize: number;        // 총 길이 (틱)
+  totalDuration?: number;   // 전체 재생 시간 (초)
 
   // 제어 변수
   volume: number;           // 전체 볼륨 (0-127)
@@ -150,7 +151,7 @@ export interface PlaybackState {
   channelVolumes: number[]; // 채널별 볼륨 (0-127)
 
   // 현재 상태
-  currentTempo: number;     // 현재 템포 값
+  currentTempo: number;     // 현재 템포 값 (BPM)
   currentVolumes: number[]; // 각 채널의 현재 볼륨
   instrumentNames?: string[]; // 각 채널의 악기명
   channelMuted?: boolean[]; // 각 채널의 뮤트 상태 (디버깅용)

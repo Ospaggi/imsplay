@@ -33,6 +33,7 @@ export class IMSPlayer {
 
   private isPlaying: boolean = false;
   private loopEnabled: boolean = true;
+  private totalTicks: number = 0;  // 전체 틱 수 (계산됨)
 
   constructor(imsData: IMSData, bnkBuffer: ArrayBuffer, oplEngine: OPLEngine) {
     this.imsData = imsData;
@@ -51,6 +52,9 @@ export class IMSPlayer {
         this.bnkData.set(i, params);
       }
     }
+
+    // 전체 틱 수 계산 (한 번만)
+    this.totalTicks = this.calculateTotalTicks();
   }
 
   /**
@@ -462,14 +466,77 @@ export class IMSPlayer {
   }
 
   /**
+   * 전체 틱 수 계산 (파일 전체 파싱)
+   */
+  private calculateTotalTicks(): number {
+    let totalTicks = 0;
+    let bytePos = 0;
+    let runStatus = 0;
+
+    while (bytePos < this.imsData.byteSize) {
+      // 이벤트 읽기
+      let idcode = readPagedByte(this.imsData.musicData, bytePos);
+
+      if (idcode < 0x80) {
+        idcode = runStatus;
+      } else {
+        bytePos++;
+        runStatus = idcode;
+      }
+
+      const eventType = idcode & 0xf0;
+
+      // 이벤트 크기만큼 건너뛰기
+      switch (eventType) {
+        case 0xc0: bytePos++; break;  // Instrument Change: 1 byte
+        case 0xa0: bytePos++; break;  // Volume Change: 1 byte
+        case 0xe0: bytePos += 2; break;  // Pitch Bend: 2 bytes
+        case 0xf0: bytePos += 5; break;  // Tempo Change: 5 bytes
+        case 0x80: bytePos += 2; break;  // Note On 1: 2 bytes
+        case 0x90: bytePos += 2; break;  // Note On 2: 2 bytes
+      }
+
+      // 델타 타임 읽기
+      while (true) {
+        const ch = readPagedByte(this.imsData.musicData, bytePos);
+        bytePos++;
+
+        if (ch === 0xfc) {
+          // 루프 마커 - 종료
+          return totalTicks;
+        }
+
+        if (ch === 0xf8) {
+          totalTicks += 240;
+          continue;
+        }
+
+        if (ch) {
+          totalTicks += ch;
+        }
+
+        break;
+      }
+    }
+
+    return totalTicks;
+  }
+
+  /**
    * 재생 상태 가져오기
    */
   getState(): IMSPlaybackState {
+    // 전체 재생 시간 계산
+    // ticks per second = 240 * tempo / 60 = 4 * tempo
+    const ticksPerSecond = 4 * this.imsData.basicTempo;
+    const totalDuration = this.totalTicks / ticksPerSecond;
+
     return {
       isPlaying: this.isPlaying,
       isPaused: !this.isPlaying && this.curByte > 0,
       currentByte: this.curByte,
       totalSize: this.imsData.byteSize,
+      totalDuration: totalDuration,
       volume: this.VOL_C,
       tempo: this.SPEED,
       currentTempo: this.currentTempo,

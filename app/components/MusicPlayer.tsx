@@ -275,8 +275,8 @@ export default function MusicPlayer() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 전체 시간 추정 (현재 진행률 기반)
-  const estimatedTotalSeconds = progress > 0 ? Math.floor(elapsedSeconds / (progress / 100)) : 0;
+  // 전체 시간 (파일에서 계산된 값 사용)
+  const totalDuration = state?.totalDuration || 0;
 
   // 샘플 리스트 아이템 생성
   const sampleListItems = MUSIC_SAMPLES.map((sample) => ({
@@ -316,7 +316,7 @@ export default function MusicPlayer() {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.0
+        {" "}IMS/ROL 웹플레이어 v1.2
         {format && ` - ${format} 모드`}
       </div>
 
@@ -406,11 +406,16 @@ export default function MusicPlayer() {
           <DosPanel style={{ height: '140px', flexShrink: 0 }}>
             {/* 진행률 */}
             <div className="mb-16">
-              <div className="dos-text-primary mb-8">
-                {state?.isPlaying
-                  ? `재생시간: ${formatTime(elapsedSeconds)} / ${estimatedTotalSeconds > 0 ? formatTime(estimatedTotalSeconds) : '--:--'}`
-                  : '재생시간: --:-- / --:--'
-                }
+              <div className="dos-text-primary mb-8 flex space-between">
+                <span>
+                  {state?.isPlaying
+                    ? `재생시간: ${formatTime(elapsedSeconds)} / ${totalDuration > 0 ? formatTime(Math.floor(totalDuration)) : '--:--'}`
+                    : '재생시간: --:-- / --:--'
+                  }
+                </span>
+                <span>
+                  BPM: {state?.currentTempo ? Math.floor(state.currentTempo) : '--'}
+                </span>
               </div>
               <div className="dos-slider-bar">
                 <div className="dos-slider-fill" style={{ width: `${progress}%` }} />
