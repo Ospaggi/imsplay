@@ -171,19 +171,13 @@ export default function MusicPlayer() {
     }
   }, [autoPlay, state, play, format, selectedSample, musicFile]);
 
-  // IMS는 currentTick, ROL은 currentByte를 사용
-  const progress = state
-    ? format === "IMS" && "currentTick" in state && "totalTicks" in state
-      ? (state.currentTick / state.totalTicks) * 100
-      : (state.currentByte / state.totalSize) * 100
-    : 0;
+  // progress bar (currentByte/totalSize 기반)
+  const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
 
-  // 재생 시간 계산 (tick 기반)
+  // 재생 시간 계산 (currentByte 기반, totalDuration 초과 방지)
   const totalDuration = state?.totalDuration || 0;
   const elapsedSeconds = state && totalDuration > 0
-    ? format === "IMS" && "currentTick" in state && "totalTicks" in state
-      ? Math.floor((state.currentTick / state.totalTicks) * totalDuration)
-      : Math.floor((state.currentByte / state.totalSize) * totalDuration)
+    ? Math.min(Math.floor((state.currentByte / state.totalSize) * totalDuration), Math.floor(totalDuration))
     : 0;
 
   // 시간 포맷팅 함수 (초 -> mm:ss)
@@ -224,7 +218,7 @@ export default function MusicPlayer() {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.4
+        {" "}IMS/ROL 웹플레이어 v1.5
         {format && ` - ${format} 모드`}
       </div>
 

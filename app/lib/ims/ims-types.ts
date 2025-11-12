@@ -82,14 +82,8 @@ export interface IMSPlaybackState {
   /** 현재 바이트 위치 */
   currentByte: number;
 
-  /** 현재 tick 위치 */
-  currentTick: number;
-
   /** 전체 바이트 크기 */
   totalSize: number;
-
-  /** 전체 tick 수 */
-  totalTicks: number;
 
   /** 전체 재생 시간 (초) */
   totalDuration?: number;

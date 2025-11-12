@@ -20,7 +20,6 @@ export class IMSPlayer {
 
   // 재생 상태
   private curByte: number = 0;
-  private currentTick: number = 0;  // 현재 재생 중인 tick 위치
   private runningStatus: number = 0;  // Running status byte (MIDI-like)
   private curVol: number[] = new Array(11).fill(0);
   private displayVolumes: number[] = new Array(11).fill(0);  // 디스플레이용 볼륨 (decay 효과)
@@ -94,7 +93,7 @@ export class IMSPlayer {
         this.displayVolumes[i] = Math.max(0, this.displayVolumes[i] - 8);  // 빠른 decay
       }
     }
-
+    
     // 파일 끝 체크 (루프 처리)
     if (this.curByte >= this.imsData.byteSize) {
       if (this.loopEnabled) {
@@ -110,9 +109,6 @@ export class IMSPlayer {
 
     // 델타 타임 읽기
     const delay = this.readDeltaTime();
-
-    // 현재 tick 위치 업데이트
-    this.currentTick += delay;
 
     return delay;
   }
@@ -439,7 +435,6 @@ export class IMSPlayer {
    */
   rewind(): void {
     this.curByte = 0;
-    this.currentTick = 0;
     this.runningStatus = 0;
     this.currentTempo = this.imsData.basicTempo;
 
@@ -520,9 +515,7 @@ export class IMSPlayer {
       isPlaying: this.isPlaying,
       isPaused: !this.isPlaying && this.curByte > 0,
       currentByte: this.curByte,
-      currentTick: this.currentTick,  // 현재 tick 위치
       totalSize: this.imsData.byteSize,
-      totalTicks: this.totalTicks,  // 전체 tick 수
       totalDuration: totalDuration,
       volume: this.VOL_C,
       tempo: this.SPEED,
