@@ -13,6 +13,7 @@ import DosButton from "~/components/dos-ui/DosButton";
 import DosList from "~/components/dos-ui/DosList";
 import DosSlider from "~/components/dos-ui/DosSlider";
 import PianoRoll from "./PianoRoll";
+import { X, Repeat1, Repeat } from "lucide-react";
 
 type MusicFormat = "ROL" | "IMS" | null;
 
@@ -26,8 +27,6 @@ const MUSIC_SAMPLES: MusicSample[] = [
   // IMS 샘플
   { musicFile: "/4JSTAMNT.IMS", format: "IMS" },
   { musicFile: "/CUTE-LV2.IMS", format: "IMS" },
-  { musicFile: "/DBBP^LEE.IMS", format: "IMS" },
-  { musicFile: "/DBBP^LIM.IMS", format: "IMS" },
   { musicFile: "/DQUEST4A.IMS", format: "IMS" },
   { musicFile: "/FF5-LOGO.IMS", format: "IMS" },
   { musicFile: "/KNIGHT-!.IMS", format: "IMS" },
@@ -113,6 +112,11 @@ export default function MusicPlayer() {
   const [autoPlay, setAutoPlay] = useState<string | null>(null); // 자동 재생할 파일 경로
   const [masterVolume, setMasterVolumeState] = useState<number>(50); // 마스터 볼륨 상태
 
+  // 반복 모드
+  type RepeatMode = 'none' | 'single' | 'all';
+  const [repeatMode, setRepeatMode] = useState<RepeatMode>('all');
+  const [currentPlaylistIndex, setCurrentPlaylistIndex] = useState<number>(0);
+
   // 플레이어에 전달되는 파일 (사용자 파일 우선, 없으면 샘플)
   const musicFile = userMusicFile || sampleMusicFile;
   const bnkFile = userBnkFile || sampleBnkFile;
@@ -180,6 +184,12 @@ export default function MusicPlayer() {
 
     setSelectedSample(samplePath);
 
+    // 플레이리스트 인덱스 업데이트
+    const index = MUSIC_SAMPLES.findIndex(s => s.musicFile === samplePath);
+    if (index !== -1) {
+      setCurrentPlaylistIndex(index);
+    }
+
     await loadSample(samplePath);
 
     // 파일 로드 후 autoPlay 플래그 설정 (파일 경로 저장)
@@ -230,6 +240,100 @@ export default function MusicPlayer() {
     }
   }, [state, musicFile]);
 
+  /**
+   * 반복 모드에 따라 플레이어의 loopEnabled 설정 동기화
+   * - 사용자 업로드 파일: 'single' 또는 'all' 모두 루프 활성화 (1곡만 있으므로)
+   * - 샘플 파일: 'single'만 루프 활성화 ('all'은 다음 곡으로)
+   */
+  useEffect(() => {
+    // 플레이어가 초기화되지 않았으면 무시
+    if (!state || !musicFile) return;
+
+    const isUserFile = !!userMusicFile;
+    const shouldLoop = repeatMode === 'single' || (repeatMode === 'all' && isUserFile);
+
+    console.log('[Loop Sync]', {
+      repeatMode,
+      isUserFile,
+      shouldLoop,
+      format,
+      hasState: true
+    });
+
+    if (format === 'IMS') {
+      imsPlayer.setLoopEnabled(shouldLoop);
+    } else if (format === 'ROL') {
+      rolPlayer.setLoopEnabled(shouldLoop);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repeatMode, format, userMusicFile, musicFile]);
+
+  /**
+   * 플레이어 초기화 직후 loopEnabled 설정
+   */
+  useEffect(() => {
+    if (!state || !musicFile) return;
+
+    const isUserFile = !!userMusicFile;
+    const shouldLoop = repeatMode === 'single' || (repeatMode === 'all' && isUserFile);
+
+    console.log('[Loop Sync on Player Init]', {
+      repeatMode,
+      isUserFile,
+      shouldLoop,
+      format
+    });
+
+    if (format === 'IMS') {
+      imsPlayer.setLoopEnabled(shouldLoop);
+    } else if (format === 'ROL') {
+      rolPlayer.setLoopEnabled(shouldLoop);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.isPlaying]); // isPlaying이 변경될 때만 (초기화 직후)
+
+  /**
+   * 다음 곡 재생
+   */
+  const playNextTrack = () => {
+    const nextIndex = (currentPlaylistIndex + 1) % MUSIC_SAMPLES.length;
+    setCurrentPlaylistIndex(nextIndex);
+    loadAndPlaySample(MUSIC_SAMPLES[nextIndex].musicFile);
+  };
+
+  /**
+   * 트랙 종료 감지 및 처리
+   * - 샘플 파일 + 'all' 모드: 다음 곡 재생
+   * - 사용자 파일 + 'all' 모드: loopEnabled가 처리 (위 useEffect에서 true로 설정)
+   */
+  useEffect(() => {
+    // 재생 중이 아니고, 파일이 로드되어 있고, 트랙이 끝까지 진행된 경우
+    const isAtEnd = state && !state.isPlaying && state.currentByte >= state.totalSize - 100;
+    const isSampleFile = !!sampleMusicFile;
+
+    if (isAtEnd && musicFile && !isLoadingSample) {
+      console.log('[Track End Detection] 트랙 종료 감지!', {
+        isSampleFile,
+        repeatMode,
+        currentFile: musicFile.name
+      });
+
+      // 'all' 모드이고 샘플 파일인 경우만 다음 곡 재생
+      // 사용자 파일은 loopEnabled=true로 자동 반복됨
+      if (repeatMode === 'all' && isSampleFile) {
+        console.log('[Track End Detection] 다음 곡 재생 시작');
+        // 약간의 딜레이 후 다음 곡 재생 (UI 업데이트 시간 확보)
+        const timeoutId = setTimeout(() => {
+          playNextTrack();
+        }, 500);
+
+        // cleanup: 컴포넌트가 언마운트되거나 dependency가 변경되면 타이머 취소
+        return () => clearTimeout(timeoutId);
+      }
+      // 'none', 'single', 또는 사용자 파일의 경우는 loopEnabled가 처리
+    }
+  }, [state?.isPlaying, state?.currentByte, state?.totalSize, repeatMode, sampleMusicFile, musicFile, isLoadingSample]);
+
   // progress bar (currentByte/totalSize 기반)
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
 
@@ -277,7 +381,7 @@ export default function MusicPlayer() {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.14
+        {" "}IMS/ROL 웹플레이어 v1.16
         {format && ` - ${format} 모드`}
       </div>
 
@@ -304,7 +408,7 @@ export default function MusicPlayer() {
                 onClick={() => (window as any).__musicFileInput?.click()}
                 style={{ flex: 1 }}
               >
-                {userMusicFile ? userMusicFile.name : 'ROL/IMS 선택'}
+                {userMusicFile ? userMusicFile.name : 'IMS/ROL 선택'}
               </DosButton>
 
               <input
@@ -338,7 +442,7 @@ export default function MusicPlayer() {
             </div>
           </DosPanel>
 
-          {/* 일시정지/정지 버튼 */}
+          {/* 일시정지/정지 버튼 및 반복 모드 */}
           <DosPanel>
             <div className="flex gap-8">
               <DosButton onClick={pause} disabled={!state || !state.isPlaying} variant="pause" style={{ flex: 1 }}>
@@ -347,6 +451,73 @@ export default function MusicPlayer() {
               <DosButton onClick={stop} disabled={!state} variant="stop" style={{ flex: 1 }}>
                 정지
               </DosButton>
+
+              {/* 반복 모드 (DOS 스타일 정사각형 버튼) */}
+              <div className="flex" style={{ gap: '2px', margin: 0 }}>
+                <DosButton
+                  onClick={() => setRepeatMode('none')}
+                  active={repeatMode === 'none'}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    padding: '2px',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTop: repeatMode === 'none' ? '2px solid black' : '2px solid white',
+                    borderLeft: repeatMode === 'none' ? '2px solid black' : '2px solid white',
+                    borderBottom: repeatMode === 'none' ? '2px solid white' : '2px solid black',
+                    borderRight: repeatMode === 'none' ? '2px solid white' : '2px solid black',
+                    backgroundColor: repeatMode === 'none' ? 'teal' : '#C0C0C0',
+                    color: 'black'
+                  }}
+                >
+                  <X size={14} />
+                </DosButton>
+                <DosButton
+                  onClick={() => setRepeatMode('all')}
+                  active={repeatMode === 'all'}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    padding: '2px',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTop: repeatMode === 'all' ? '2px solid black' : '2px solid white',
+                    borderLeft: repeatMode === 'all' ? '2px solid black' : '2px solid white',
+                    borderBottom: repeatMode === 'all' ? '2px solid white' : '2px solid black',
+                    borderRight: repeatMode === 'all' ? '2px solid white' : '2px solid black',
+                    backgroundColor: repeatMode === 'all' ? 'teal' : '#C0C0C0',
+                    color: 'black'
+                  }}
+                >
+                  <Repeat size={14} />
+                </DosButton>
+                <DosButton
+                  onClick={() => setRepeatMode('single')}
+                  active={repeatMode === 'single'}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    padding: '2px',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTop: repeatMode === 'single' ? '2px solid black' : '2px solid white',
+                    borderLeft: repeatMode === 'single' ? '2px solid black' : '2px solid white',
+                    borderBottom: repeatMode === 'single' ? '2px solid white' : '2px solid black',
+                    borderRight: repeatMode === 'single' ? '2px solid white' : '2px solid black',
+                    backgroundColor: repeatMode === 'single' ? 'teal' : '#C0C0C0',
+                    color: 'black'
+                  }}
+                >
+                  <Repeat1 size={14} />
+                </DosButton>
+              </div>
             </div>
           </DosPanel>
 
@@ -461,7 +632,13 @@ export default function MusicPlayer() {
       {/* 스테이터스 바 */}
       <div className="dos-status-bar">
         <div className="dos-status-item">
-          상태: {state ? (state.isPlaying ? "재생중" : state.isPaused ? "일시정지" : "정지") : "대기"}
+          상태: {state ? (
+            state.isPlaying
+              ? `재생중 (${musicFile?.name || '?'}${bnkFile ? ', ' + bnkFile.name : ''})`
+              : state.isPaused
+                ? "일시정지"
+                : "정지"
+          ) : "대기"}
         </div>
         <div className="dos-status-item">
           BPM: {state?.currentTempo ? Math.floor(state.currentTempo) : '--'}

@@ -96,9 +96,16 @@ export class IMSPlayer {
     
     // 파일 끝 체크 (루프 처리)
     if (this.curByte >= this.imsData.byteSize) {
+      console.log('[IMS tick] 파일 끝 도달', {
+        curByte: this.curByte,
+        byteSize: this.imsData.byteSize,
+        loopEnabled: this.loopEnabled
+      });
       if (this.loopEnabled) {
+        console.log('[IMS tick] 루프 활성화 - rewind() 호출');
         this.rewind();
       } else {
+        console.log('[IMS tick] 루프 비활성화 - 재생 중지');
         this.isPlaying = false;
         return 0;
       }
@@ -561,6 +568,7 @@ export class IMSPlayer {
    * 루프 활성화/비활성화
    */
   setLoopEnabled(enabled: boolean): void {
+    console.log('[IMS setLoopEnabled]', { enabled });
     this.loopEnabled = enabled;
   }
 }

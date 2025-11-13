@@ -358,7 +358,14 @@ export function useIMSPlayer({
    * 루프 활성화/비활성화
    */
   const setLoopEnabled = useCallback((enabled: boolean) => {
-    if (!playerRef.current) return;
+    console.log('[useIMSPlayer.setLoopEnabled]', {
+      enabled,
+      hasPlayer: !!playerRef.current
+    });
+    if (!playerRef.current) {
+      console.log('[useIMSPlayer.setLoopEnabled] playerRef.current가 없어서 무시됨');
+      return;
+    }
     playerRef.current.setLoopEnabled(enabled);
   }, []);
 
