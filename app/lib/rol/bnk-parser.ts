@@ -73,8 +73,6 @@ function loadAllInstruments(buffer: ArrayBuffer): Map<string, number[]> {
   const header = parseBNKHeader(reader);
   const allInstruments = new Map<string, number[]>();
 
-  console.log(`[loadAllInstruments] BNK 파일 악기 총 개수: ${header.insMaxNum}`);
-
   // 전체 악기 리스트 순회하여 Map 생성
   for (let i = 0; i < header.insMaxNum; i++) {
     // 악기 리스트에서 이름과 인덱스 읽기
@@ -94,7 +92,6 @@ function loadAllInstruments(buffer: ArrayBuffer): Map<string, number[]> {
     allInstruments.set(name.toLowerCase(), params);
   }
 
-  console.log(`[loadAllInstruments] 총 ${allInstruments.size}개 악기 로드 완료`);
   return allInstruments;
 }
 
@@ -109,29 +106,20 @@ export function loadInstruments(
   buffer: ArrayBuffer,
   instrumentNames: string[]
 ): Map<string, number[]> {
-  console.log(`[loadInstruments] 요청된 악기 개수: ${instrumentNames.length}`);
-  console.log(`[loadInstruments] 요청된 악기 목록:`, instrumentNames);
-
   // 전체 악기 맵 생성
   const allInstruments = loadAllInstruments(buffer);
   const instruments = new Map<string, number[]>();
 
   // 요청된 악기들만 추출
-  let foundCount = 0;
-  let notFoundCount = 0;
   for (const insName of instrumentNames) {
     const params = allInstruments.get(insName.toLowerCase());
     if (params) {
       instruments.set(insName, params);
-      foundCount++;
-      console.log(`[loadInstruments] ✅ "${insName}" → BNK에서 찾음 (params 길이: ${params.length})`);
     } else {
-      notFoundCount++;
-      console.warn(`[loadInstruments] ❌ "${insName}" → BNK에서 찾을 수 없음`);
+      console.warn(`[loadInstruments] ❌ 악기 "${insName}" → BNK에서 찾을 수 없음`);
     }
   }
 
-  console.log(`[loadInstruments] 결과: 성공 ${foundCount}개 / 실패 ${notFoundCount}개`);
   return instruments;
 }
 

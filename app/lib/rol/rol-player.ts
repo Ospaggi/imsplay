@@ -45,49 +45,19 @@ export class ROLPlayer {
     this.rolData = rolData;
     this.oplEngine = oplEngine;
 
-    console.log(`[ROLPlayer.constructor] ROL 파일 정보:`, {
-      channelNum: rolData.channelNum,
-      insNum: rolData.insNum,
-      dMode: rolData.dMode,
-      tpb: rolData.tpb,
-      basicTempo: rolData.basicTempo,
-    });
-
     // BNK 파일에서 악기 로드
     this.bnkData = loadInstruments(bnkBuffer, rolData.insName);
 
     // 악기 데이터를 인덱스별로 매핑
-    console.log(`[ROLPlayer.constructor] 악기 인덱스 매핑 시작 (총 ${rolData.insNum}개)`);
-    let mappedCount = 0;
     let notMappedCount = 0;
     for (let i = 0; i < rolData.insNum; i++) {
       const insName = rolData.insName[i];
       const params = this.bnkData.get(insName);
       if (params) {
         this.INS_DATA.set(i, params);
-        mappedCount++;
-        console.log(`[ROLPlayer.constructor] ✅ 인덱스 ${i} → "${insName}" (params: ${params.length}바이트)`);
       } else {
         notMappedCount++;
-        console.warn(`[ROLPlayer.constructor] ❌ 인덱스 ${i} → "${insName}" (BNK에서 찾을 수 없음)`);
-      }
-    }
-    console.log(`[ROLPlayer.constructor] 매핑 결과: 성공 ${mappedCount}개 / 실패 ${notMappedCount}개`);
-
-    // 채널별 악기 이벤트 정보 출력
-    console.log(`[ROLPlayer.constructor] 채널별 악기 이벤트 정보:`);
-    for (let ch = 0; ch < rolData.channelNum; ch++) {
-      const channel = rolData.channels[ch];
-      if (channel.insCount > 0) {
-        console.log(`  ch:${ch} 악기 이벤트 ${channel.insCount}개:`,
-          channel.insTime.map((time, idx) => {
-            const insIndex = channel.insList[idx];
-            const insName = rolData.insName[insIndex] || `?${insIndex}`;
-            return `tick:${time}→"${insName}"`;
-          }).join(', ')
-        );
-      } else {
-        console.log(`  ch:${ch} 악기 이벤트 없음`);
+        console.warn(`[ROLPlayer.constructor] ❌ 악기 "${insName}" (인덱스 ${i}) → BNK에서 찾을 수 없음`);
       }
     }
 
@@ -239,12 +209,11 @@ export class ROLPlayer {
       const params = this.INS_DATA.get(insIndex);
 
       if (params) {
-        console.log(`[rol_ins_rt] ✅ ch:${ch} tick:${this.CUR_BYTE} insIndex:${insIndex} insName:"${insName}" → setVoiceTimbre 호출`);
         this.oplEngine.setVoiceTimbre(ch, params);
         // 화면 표시용 악기명 업데이트
         this.channelInstruments[ch] = insName;
       } else {
-        console.warn(`[rol_ins_rt] ❌ ch:${ch} tick:${this.CUR_BYTE} insIndex:${insIndex} insName:"${insName}" → INS_DATA에 없음!`);
+        console.warn(`[rol_ins_rt] ❌ 악기 "${insName}" (인덱스 ${insIndex}) → 데이터 없음!`);
         this.channelInstruments[ch] = "!" + insName;
       }
       this.ICH[ch]++;

@@ -155,10 +155,7 @@ export class OPLEngine {
    * SetVoiceTimbre() 포팅 (ADLIB.C:431-454)
    */
   setVoiceTimbre(voice: number, paramArray: number[]): void {
-    console.log(`[setVoiceTimbre] voice:${voice} paramArray.length:${paramArray.length} modeVoices:${this.modeVoices} percussion:${this.percussion}`);
-
     if (voice >= this.modeVoices) {
-      console.warn(`[setVoiceTimbre] ❌ voice(${voice}) >= modeVoices(${this.modeVoices}), early return`);
       return;
     }
 
@@ -169,10 +166,7 @@ export class OPLEngine {
       ? constants.slotPVoice[voice]
       : constants.slotMVoice[voice];
 
-    console.log(`[setVoiceTimbre] wave0:${wave0} wave1:${wave1} slots:[${slots[0]}, ${slots[1]}]`);
-
     this.setSlotParam(slots[0], paramArray.slice(0, constants.nbLocParam - 1), wave0);
-    console.log(`[setVoiceTimbre] ✅ setSlotParam(slot:${slots[0]}) 완료`);
 
     if (slots[1] !== 255) {
       this.setSlotParam(
@@ -180,7 +174,6 @@ export class OPLEngine {
         paramArray.slice(constants.nbLocParam - 1, 2 * (constants.nbLocParam - 1)),
         wave1
       );
-      console.log(`[setVoiceTimbre] ✅ setSlotParam(slot:${slots[1]}) 완료`);
     }
   }
 
@@ -322,14 +315,11 @@ export class OPLEngine {
    * SetSlotParam() 포팅 (ADLIB.C:649-658)
    */
   private setSlotParam(slot: number, param: number[], waveSel: number): void {
-    console.log(`[setSlotParam] slot:${slot} param.length:${param.length} waveSel:${waveSel}`);
-
     for (let i = 0; i < constants.nbLocParam - 1; i++) {
       this.paramSlot[slot][i] = param[i];
     }
     this.paramSlot[slot][constants.nbLocParam - 1] = waveSel & 0x03;
 
-    console.log(`[setSlotParam] paramSlot[${slot}] 업데이트 완료, sndSetAllPrm 호출`);
     this.sndSetAllPrm(slot);
   }
 

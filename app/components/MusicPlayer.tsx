@@ -89,14 +89,12 @@ async function findMatchingBnkFile(musicFilePath: string): Promise<string> {
   try {
     const response = await fetch(matchingBnkPath, { method: 'HEAD' });
     if (response.ok) {
-      console.log(`[findMatchingBnkFile] ${matchingBnkPath} 찾음, 사용합니다.`);
       return matchingBnkPath;
     }
   } catch (error) {
     // 파일이 없으면 에러 발생, STANDARD.BNK 사용
   }
 
-  console.log(`[findMatchingBnkFile] ${matchingBnkPath} 없음, STANDARD.BNK 사용`);
   return BNK_FILE;
 }
 
