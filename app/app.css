@@ -48,7 +48,7 @@
   /* Meters */
   --meter-low: #00FF00;
   --meter-mid: #FFFF00;
-  --meter-high: #FF0000;
+  --meter-high: #FFBB99;
 }
 
 * {
