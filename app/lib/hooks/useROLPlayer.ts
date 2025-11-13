@@ -115,6 +115,9 @@ export function useROLPlayer({
         // 오디오 프로세서 초기화
         initializeAudioProcessor(audioContext);
 
+        // 샘플 생성 카운터 초기화 (이전 재생의 잔여 값 제거)
+        lenGenRef.current = 0;
+
         // 초기 상태 설정
         fileNameRef.current = rolFile.name; // fileNameRef 업데이트
         setState({
