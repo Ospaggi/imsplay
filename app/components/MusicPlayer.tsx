@@ -13,7 +13,7 @@ import DosButton from "~/components/dos-ui/DosButton";
 import DosList from "~/components/dos-ui/DosList";
 import DosSlider from "~/components/dos-ui/DosSlider";
 import PianoRoll from "./PianoRoll";
-import { X, Repeat1, Repeat } from "lucide-react";
+import { X, Repeat1, Repeat, Play } from "lucide-react";
 
 type MusicFormat = "ROL" | "IMS" | null;
 
@@ -21,6 +21,7 @@ type MusicFormat = "ROL" | "IMS" | null;
 interface MusicSample {
   musicFile: string;
   format: "ROL" | "IMS";
+  title?: string; // IMS 파일의 songName 또는 ROL 파일명 (확장자 제외)
 }
 
 const MUSIC_SAMPLES: MusicSample[] = [
@@ -97,7 +98,13 @@ async function findMatchingBnkFile(musicFilePath: string): Promise<string> {
   return BNK_FILE;
 }
 
-export default function MusicPlayer() {
+interface MusicPlayerProps {
+  titleMap: Record<string, string>;
+}
+
+export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
+  // 샘플 음악 목록 (제목 포함)
+  const [musicSamples, setMusicSamples] = useState<MusicSample[]>(MUSIC_SAMPLES);
   const [selectedSample, setSelectedSample] = useState<string>(MUSIC_SAMPLES[0].musicFile);
 
   // 사용자가 직접 업로드한 파일
@@ -185,7 +192,7 @@ export default function MusicPlayer() {
     setSelectedSample(samplePath);
 
     // 플레이리스트 인덱스 업데이트
-    const index = MUSIC_SAMPLES.findIndex(s => s.musicFile === samplePath);
+    const index = musicSamples.findIndex(s => s.musicFile === samplePath);
     if (index !== -1) {
       setCurrentPlaylistIndex(index);
     }
@@ -195,6 +202,25 @@ export default function MusicPlayer() {
     // 파일 로드 후 autoPlay 플래그 설정 (파일 경로 저장)
     setAutoPlay(samplePath);
   };
+
+  /**
+   * titleMap을 사용하여 샘플 목록에 제목 추가
+   */
+  useEffect(() => {
+    const samplesWithTitles = MUSIC_SAMPLES.map((sample) => {
+      if (sample.format === 'IMS') {
+        const fileName = sample.musicFile.slice(1); // '/' 제거
+        const title = titleMap[fileName] || fileName.replace('.IMS', '');
+        return { ...sample, title };
+      } else {
+        // ROL 파일: 파일명에서 확장자 제거
+        const title = sample.musicFile.slice(1).replace('.ROL', '');
+        return { ...sample, title };
+      }
+    });
+    setMusicSamples(samplesWithTitles);
+    console.log('[MusicPlayer] 제목 맵 적용 완료', samplesWithTitles.map(s => ({ file: s.musicFile, title: s.title })));
+  }, [titleMap]);
 
   /**
    * 플레이어 준비 완료 시 자동 재생
@@ -311,9 +337,9 @@ export default function MusicPlayer() {
    * 다음 곡 재생
    */
   const playNextTrack = () => {
-    const nextIndex = (currentPlaylistIndex + 1) % MUSIC_SAMPLES.length;
+    const nextIndex = (currentPlaylistIndex + 1) % musicSamples.length;
     setCurrentPlaylistIndex(nextIndex);
-    loadAndPlaySample(MUSIC_SAMPLES[nextIndex].musicFile);
+    loadAndPlaySample(musicSamples[nextIndex].musicFile);
   };
 
   /**
@@ -373,7 +399,7 @@ export default function MusicPlayer() {
   };
 
   // 샘플 리스트 아이템 생성
-  const sampleListItems = MUSIC_SAMPLES.map((sample) => ({
+  const sampleListItems = musicSamples.map((sample) => ({
     key: sample.musicFile,
     content: (
       <div className="flex space-between align-center w-full">
@@ -381,15 +407,23 @@ export default function MusicPlayer() {
           <span className={`dos-badge ${sample.format === 'ROL' ? 'dos-badge-rol' : 'dos-badge-ims'}`}>
             {sample.format}
           </span>
-          <span>{sample.musicFile.slice(1)}</span>
+          <span className="sample-title">{sample.title || sample.musicFile.slice(1)}</span>
         </div>
         <DosButton
           onClick={() => {
             loadAndPlaySample(sample.musicFile);
           }}
           disabled={isLoadingSample}
+          style={{
+            width: '28px',
+            height: '28px',
+            padding: '2px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
         >
-          재생
+          <Play size={16} />
         </DosButton>
       </div>
     ),
@@ -403,7 +437,7 @@ export default function MusicPlayer() {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.18
+        {" "}IMS/ROL 웹플레이어 v1.19
         {format && ` - ${format} 모드`}
       </div>
 
@@ -656,7 +690,13 @@ export default function MusicPlayer() {
         <div className="dos-status-item">
           상태: {state ? (
             state.isPlaying
-              ? `재생중 (${musicFile?.name || '?'}${bnkFile ? ', ' + bnkFile.name : ''})`
+              ? (() => {
+                  const currentSample = musicSamples.find(s => s.musicFile === selectedSample);
+                  const title = currentSample?.title || musicFile?.name || '?';
+                  const fileName = musicFile?.name || '?';
+                  const bnkName = bnkFile?.name || '';
+                  return `재생중 - ${title} (${fileName}${bnkName ? ', ' + bnkName : ''})`;
+                })()
               : state.isPaused
                 ? "일시정지"
                 : "정지"

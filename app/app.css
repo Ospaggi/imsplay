@@ -767,6 +767,14 @@ body {
   z-index: 1;
 }
 
+/* Sample title - simple truncate */
+.sample-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .dos-container {

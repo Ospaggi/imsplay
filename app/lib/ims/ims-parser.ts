@@ -28,8 +28,10 @@ export function parseIMS(buffer: ArrayBuffer): IMSData {
   const reader = new BinaryReader(buffer);
 
   // Offset 6: 곡 이름 (30바이트)
+  // 서버 사이드에서 제목을 변환하므로 여기서는 스킵
   reader.seek(6);
-  const songName = reader.readString(30, true);
+  reader.skip(30);
+  const songName = ""; // 제목은 서버에서 제공
 
   // Offset 42: byte_size (음악 데이터 크기)
   reader.seek(42);
