@@ -72,15 +72,7 @@ export function useROLPlayer({
    * ROL/BNK 파일 로드 및 플레이어 초기화
    */
   useEffect(() => {
-    console.log('[useROLPlayer useEffect] 트리거됨', {
-      hasRolFile: !!rolFile,
-      rolFileName: rolFile?.name,
-      hasBnkFile: !!bnkFile,
-      fileLoadKey
-    });
-
     if (!rolFile || !bnkFile) {
-      console.log('[useROLPlayer useEffect] 파일 없음, 종료');
       return;
     }
 
@@ -88,8 +80,6 @@ export function useROLPlayer({
 
     const initializePlayer = async () => {
       try {
-        console.log('[useROLPlayer initializePlayer] 시작:', rolFile.name);
-
         // 플레이어 준비 상태 리셋 (playerRef 정리 전에!)
         setIsPlayerReady(false);
 
@@ -117,11 +107,8 @@ export function useROLPlayer({
         // Web Audio API 초기화 (기존 AudioContext 재사용 - Safari autoplay 정책)
         let audioContext = audioContextRef.current;
         if (!audioContext || audioContext.state === 'closed') {
-          console.log('[initializePlayer] 새 AudioContext 생성');
           audioContext = new AudioContext();
           audioContextRef.current = audioContext;
-        } else {
-          console.log('[initializePlayer] 기존 AudioContext 재사용, state:', audioContext.state);
         }
 
         // ROL 플레이어 생성 및 초기화 (AudioContext 샘플레이트 전달)
@@ -143,7 +130,6 @@ export function useROLPlayer({
 
         // 오디오 프로세서 초기화 (기존 프로세서가 있으면 정리 후 재생성)
         if (processorRef.current) {
-          console.log('[initializePlayer] 기존 프로세서 정리');
           processorRef.current.disconnect();
           processorRef.current = null;
         }
@@ -164,7 +150,6 @@ export function useROLPlayer({
           channelMuted: channelMuted.slice(0, rolData.channelNum),
         });
         setIsLoading(false);
-        console.log('[useROLPlayer initializePlayer] 완료:', rolFile.name);
       } catch (err) {
         if (!cancelled) {
           console.error('[useROLPlayer initializePlayer] 에러:', err);
@@ -281,16 +266,13 @@ export function useROLPlayer({
    */
   const play = useCallback(async () => {
     if (!playerRef.current || !audioContextRef.current) {
-      console.log('[useROLPlayer.play] playerRef 또는 audioContextRef 없음');
       return;
     }
 
     const audioContext = audioContextRef.current;
-    console.log('[useROLPlayer.play] AudioContext state:', audioContext.state);
 
     // AudioContext resume (Safari autoplay 정책: await 필요)
     if (audioContext.state === "suspended") {
-      console.log('[useROLPlayer.play] AudioContext 재개 중...');
       try {
         // Safari에서 resume()이 영원히 pending될 수 있으므로 타임아웃 추가
         const resumePromise = audioContext.resume();
@@ -299,7 +281,6 @@ export function useROLPlayer({
         );
 
         await Promise.race([resumePromise, timeoutPromise]);
-        console.log('[useROLPlayer.play] AudioContext 재개 완료:', audioContext.state);
 
         // 재개 후에도 suspended 상태라면 경고
         if (audioContext.state === "suspended") {
@@ -488,13 +469,7 @@ export function useROLPlayer({
    * playerRef 직접 확인 (stale state 회피)
    */
   const checkPlayerReady = useCallback(() => {
-    const isReady = !!(playerRef.current && audioContextRef.current);
-    console.log('[useROLPlayer.checkPlayerReady]', {
-      hasPlayer: !!playerRef.current,
-      hasAudioContext: !!audioContextRef.current,
-      isReady
-    });
-    return isReady;
+    return !!(playerRef.current && audioContextRef.current);
   }, []);
 
   return {

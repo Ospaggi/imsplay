@@ -122,16 +122,10 @@ export class IMSPlayer {
 
     // 루프 마커 체크 - 이벤트 처리 전에 먼저 확인
     if (idcode === 0xfc) {
-      console.log('[IMS processEvent] 루프 마커(0xFC) 감지!', {
-        curByte: this.curByte,
-        loopEnabled: this.loopEnabled
-      });
       if (this.loopEnabled) {
-        console.log('[IMS processEvent] 루프 활성화 - 처음부터 재생');
         this.curByte = 0;
         this.runningStatus = 0;
       } else {
-        console.log('[IMS processEvent] 루프 비활성화 - 재생 중지');
         this.isPlaying = false;
       }
       return;  // 루프마커에서 즉시 종료
@@ -198,10 +192,6 @@ export class IMSPlayer {
 
       // 루프마커 체크
       if (ch === 0xfc) {
-        console.log('[readDeltaTime] 루프마커 감지!', {
-          curByte: this.curByte,
-          loopEnabled: this.loopEnabled
-        });
         if (this.loopEnabled) {
           this.curByte = 0;
           this.runningStatus = 0;
@@ -226,11 +216,6 @@ export class IMSPlayer {
 
       // 긴 딜레이 감지 - 10000틱 이상이면 곡 종료로 처리
       if (tDelay >= 10000) {
-        console.log('[readDeltaTime] 비정상적으로 긴 딜레이 감지 - 곡 종료 처리', {
-          tDelay,
-          curByte: this.curByte,
-          loopCount
-        });
         this.isPlaying = false;
         return 1;
       }
@@ -261,10 +246,7 @@ export class IMSPlayer {
         this.oplEngine.noteOff(ch);
         this.oplEngine.setVoiceVolume(ch, 0);
         this.curVol[ch] = 0;
-        console.warn(`[handleInstrumentChange] ch:${ch} insIndex:${insIndex} insName:${insName} - 뱅크에 악기 없음! 채널 뮤트`);
       }
-    } else {
-      console.warn(`[handleInstrumentChange] ch:${ch} insIndex:${insIndex} - insIndex가 범위를 벗어남!`);
     }
   }
 
@@ -597,7 +579,6 @@ export class IMSPlayer {
    * 루프 활성화/비활성화
    */
   setLoopEnabled(enabled: boolean): void {
-    console.log('[IMS setLoopEnabled]', { enabled });
     this.loopEnabled = enabled;
   }
 }

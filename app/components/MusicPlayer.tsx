@@ -312,24 +312,54 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         titlesMap.set(file.name, file.name.replace(/\.(ims|rol)$/i, ''));
       });
 
-      // IMS 파일이 있으면 서버에 제목 추출 요청
+      // IMS 파일이 있으면 서버에 제목 추출 요청 (배치 처리)
       if (imsFiles.length > 0) {
-        const formData = new FormData();
-        imsFiles.forEach((file, index) => {
-          formData.append(`ims-${index}`, file);
-        });
-
-        // useFetcher를 사용하여 서버 action 호출
-        fetcher.submit(formData, {
-          method: 'POST',
-          action: '/api/extract-titles',
-          encType: 'multipart/form-data',
-        });
-
-        // fetcher는 비동기적으로 동작하므로, 일단 파일명으로 초기화
+        // 일단 파일명으로 초기화
         imsFiles.forEach(file => {
           titlesMap.set(file.name, file.name.replace(/\.ims$/i, ''));
         });
+
+        // 배치 크기 설정 (한 번에 50개씩 처리)
+        const BATCH_SIZE = 50;
+        const batches: File[][] = [];
+
+        for (let i = 0; i < imsFiles.length; i += BATCH_SIZE) {
+          batches.push(imsFiles.slice(i, i + BATCH_SIZE));
+        }
+
+        // 각 배치를 순차적으로 처리
+        const processBatch = async (batch: File[], batchIndex: number) => {
+          const formData = new FormData();
+          batch.forEach((file, index) => {
+            formData.append(`ims-${index}`, file);
+          });
+
+          try {
+            const response = await fetch('/api/extract-titles', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              // 제목 Map 업데이트
+              Object.entries(data.titleMap).forEach(([fileName, title]) => {
+                titlesMap.set(fileName, title as string);
+              });
+              // 상태 업데이트하여 UI에 반영
+              setUserMusicFileTitles(new Map(titlesMap));
+            }
+          } catch (error) {
+            console.error(`Batch ${batchIndex + 1} failed:`, error);
+          }
+        };
+
+        // 모든 배치를 순차적으로 처리 (백그라운드에서)
+        (async () => {
+          for (let i = 0; i < batches.length; i++) {
+            await processBatch(batches[i], i);
+          }
+        })();
       }
 
       setUserMusicFiles(musicFiles);
@@ -416,11 +446,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     bnkMap?: Map<string, File>,
     autoPlayAfterLoad: boolean = false
   ) => {
-    console.log('[loadTrack] 시작', { index, autoPlayAfterLoad });
-
     // 현재 재생 중이면 정지
     if (state?.isPlaying) {
-      console.log('[loadTrack] 현재 재생 중 -> stop() 호출');
       stop();
     }
 
@@ -436,11 +463,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         const musicFile = musicFiles[index];
 
         if (!musicFile) {
-          console.log('[loadTrack] musicFile 없음');
           return;
         }
 
-        console.log('[loadTrack] 사용자 폴더 모드:', musicFile.name);
         const bnkFile = await findUserBnkFile(musicFile, userBnkMap);
 
         setCurrentMusicFile(musicFile);
@@ -449,11 +474,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         // 샘플 모드
         const sample = musicSamples[index];
         if (!sample) {
-          console.log('[loadTrack] sample 없음');
           return;
         }
 
-        console.log('[loadTrack] 샘플 모드:', sample.musicFile);
         const filename = sample.musicFile.split("/").pop() || "sample";
         const bnkPath = await findMatchingBnkFile(sample.musicFile);
         const bnkFilename = bnkPath.split("/").pop() || "STANDARD.BNK";
@@ -468,20 +491,15 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       }
 
       // fileLoadKey 증가 (플레이어 강제 재초기화)
-      setFileLoadKey(prev => {
-        console.log('[loadTrack] fileLoadKey 증가:', prev, '->', prev + 1);
-        return prev + 1;
-      });
+      setFileLoadKey(prev => prev + 1);
 
       if (autoPlayAfterLoad) {
-        console.log('[loadTrack] autoPlay 설정');
         setAutoPlay(true);
       }
     } catch (error) {
       console.error('[loadTrack] 에러:', error);
     } finally {
       setIsLoadingTrack(false);
-      console.log('[loadTrack] 완료');
     }
   }, [isUserFolder, userMusicFiles, userBnkFiles, musicSamples, state?.isPlaying, stop]);
 
@@ -520,23 +538,12 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
    * 플레이어 준비 완료 시 자동 재생
    */
   useEffect(() => {
-    console.log('[autoPlay useEffect]', {
-      autoPlay,
-      isPlayerReady,
-      hasState: !!state,
-      stateFileName: state?.fileName,
-      hasPlay: !!play,
-      currentFileName: currentMusicFile?.name
-    });
-
     if (!autoPlay || !state || !play || !currentMusicFile || !checkPlayerReady) {
-      console.log('[autoPlay useEffect] 조건 미충족 (기본 체크)');
       return;
     }
 
     // playerRef 직접 확인 (stale state 회피)
     if (!checkPlayerReady()) {
-      console.log('[autoPlay useEffect] playerRef 준비 안됨 (checkPlayerReady 실패)');
       return;
     }
 
@@ -544,11 +551,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     const currentFileName = currentMusicFile.name;
 
     if (stateFileName === currentFileName) {
-      console.log('[autoPlay useEffect] 재생 시작');
       play();
       setAutoPlay(false);
-    } else {
-      console.log('[autoPlay useEffect] 파일명 불일치', { stateFileName, currentFileName });
     }
   }, [autoPlay, isPlayerReady, state, play, format, currentMusicFile, checkPlayerReady]);
 
@@ -614,19 +618,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
   // progress bar
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
-
-  // 재생 시간 계산
-  const totalDuration = state?.totalDuration || 0;
-  const elapsedSeconds = state && totalDuration > 0
-    ? Math.min(Math.floor((state.currentByte / state.totalSize) * totalDuration), Math.floor(totalDuration))
-    : 0;
-
-  // 시간 포맷팅
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   // 음악 리스트 아이템 생성
   const listItems = useMemo(() => {
@@ -1021,24 +1012,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
               <div className="dos-progress-bar">
                 <div className="dos-progress-fill" style={{ width: `${progress}%` }} />
                 <div className="dos-progress-text">
-                  {state?.isPlaying
-                    ? `${formatTime(elapsedSeconds)} / ${totalDuration > 0 ? formatTime(Math.floor(totalDuration)) : '--:--'}`
-                    : '--:-- / --:--'
-                  }
-                </div>
-                <div style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: 0,
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: 'var(--color-white)',
-                  fontSize: '16px',
-                  fontWeight: 'normal',
-                  pointerEvents: 'none',
-                  mixBlendMode: 'difference'
-                }}>
                   BPM: {state?.currentTempo ? Math.floor(state.currentTempo) : '--'}
                 </div>
               </div>

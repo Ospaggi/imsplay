@@ -57,7 +57,6 @@ export class ROLPlayer {
         this.INS_DATA.set(i, params);
       } else {
         notMappedCount++;
-        console.warn(`[ROLPlayer.constructor] ❌ 악기 "${insName}" (인덱스 ${i}) → BNK에서 찾을 수 없음`);
       }
     }
 
@@ -213,7 +212,6 @@ export class ROLPlayer {
         // 화면 표시용 악기명 업데이트
         this.channelInstruments[ch] = insName;
       } else {
-        console.warn(`[rol_ins_rt] ❌ 악기 "${insName}" (인덱스 ${insIndex}) → 데이터 없음!`);
         this.channelInstruments[ch] = "!" + insName;
       }
       this.ICH[ch]++;

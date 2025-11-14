@@ -69,15 +69,7 @@ export function useIMSPlayer({
    * IMS/BNK 파일 로드 및 플레이어 초기화
    */
   useEffect(() => {
-    console.log('[useIMSPlayer useEffect] 트리거됨', {
-      hasImsFile: !!imsFile,
-      imsFileName: imsFile?.name,
-      hasBnkFile: !!bnkFile,
-      fileLoadKey
-    });
-
     if (!imsFile || !bnkFile) {
-      console.log('[useIMSPlayer useEffect] 파일 없음, 종료');
       return;
     }
 
@@ -85,8 +77,6 @@ export function useIMSPlayer({
 
     const initializePlayer = async () => {
       try {
-        console.log('[useIMSPlayer initializePlayer] 시작:', imsFile.name);
-
         // 플레이어 준비 상태 리셋 (playerRef 정리 전에!)
         setIsPlayerReady(false);
 
@@ -114,11 +104,8 @@ export function useIMSPlayer({
         // Web Audio API 초기화 (기존 AudioContext 재사용 - Safari autoplay 정책)
         let audioContext = audioContextRef.current;
         if (!audioContext || audioContext.state === 'closed') {
-          console.log('[initializePlayer] 새 AudioContext 생성');
           audioContext = new AudioContext();
           audioContextRef.current = audioContext;
-        } else {
-          console.log('[initializePlayer] 기존 AudioContext 재사용, state:', audioContext.state);
         }
 
         // IMS 플레이어 생성 및 초기화
@@ -140,7 +127,6 @@ export function useIMSPlayer({
 
         // 오디오 프로세서 초기화 (기존 프로세서가 있으면 정리 후 재생성)
         if (processorRef.current) {
-          console.log('[initializePlayer] 기존 프로세서 정리');
           processorRef.current.disconnect();
           processorRef.current = null;
         }
@@ -161,7 +147,6 @@ export function useIMSPlayer({
           channelMuted: channelMuted.slice(0, imsData.chNum),
         });
         setIsLoading(false);
-        console.log('[useIMSPlayer initializePlayer] 완료:', imsFile.name);
       } catch (err) {
         if (!cancelled) {
           console.error('[useIMSPlayer initializePlayer] 에러:', err);
@@ -299,16 +284,13 @@ export function useIMSPlayer({
    */
   const play = useCallback(async () => {
     if (!playerRef.current || !audioContextRef.current) {
-      console.log('[useIMSPlayer.play] playerRef 또는 audioContextRef 없음');
       return;
     }
 
     const audioContext = audioContextRef.current;
-    console.log('[useIMSPlayer.play] AudioContext state:', audioContext.state);
 
     // AudioContext resume (Safari autoplay 정책: await 필요)
     if (audioContext.state === "suspended") {
-      console.log('[useIMSPlayer.play] AudioContext 재개 중...');
       try {
         // Safari에서 resume()이 영원히 pending될 수 있으므로 타임아웃 추가
         const resumePromise = audioContext.resume();
@@ -317,7 +299,6 @@ export function useIMSPlayer({
         );
 
         await Promise.race([resumePromise, timeoutPromise]);
-        console.log('[useIMSPlayer.play] AudioContext 재개 완료:', audioContext.state);
 
         // 재개 후에도 suspended 상태라면 경고
         if (audioContext.state === "suspended") {
@@ -416,12 +397,7 @@ export function useIMSPlayer({
    * 루프 활성화/비활성화
    */
   const setLoopEnabled = useCallback((enabled: boolean) => {
-    console.log('[useIMSPlayer.setLoopEnabled]', {
-      enabled,
-      hasPlayer: !!playerRef.current
-    });
     if (!playerRef.current) {
-      console.log('[useIMSPlayer.setLoopEnabled] playerRef.current가 없어서 무시됨');
       return;
     }
     playerRef.current.setLoopEnabled(enabled);
@@ -485,13 +461,7 @@ export function useIMSPlayer({
    * playerRef 직접 확인 (stale state 회피)
    */
   const checkPlayerReady = useCallback(() => {
-    const isReady = !!(playerRef.current && audioContextRef.current);
-    console.log('[useIMSPlayer.checkPlayerReady]', {
-      hasPlayer: !!playerRef.current,
-      hasAudioContext: !!audioContextRef.current,
-      isReady
-    });
-    return isReady;
+    return !!(playerRef.current && audioContextRef.current);
   }, []);
 
   return {

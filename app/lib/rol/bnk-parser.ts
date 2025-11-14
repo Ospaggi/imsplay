@@ -115,8 +115,6 @@ export function loadInstruments(
     const params = allInstruments.get(insName.toLowerCase());
     if (params) {
       instruments.set(insName, params);
-    } else {
-      console.warn(`[loadInstruments] ❌ 악기 "${insName}" → BNK에서 찾을 수 없음`);
     }
   }
 
