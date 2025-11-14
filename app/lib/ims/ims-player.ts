@@ -93,19 +93,12 @@ export class IMSPlayer {
         this.displayVolumes[i] = Math.max(0, this.displayVolumes[i] - 8);  // 빠른 decay
       }
     }
-    
+
     // 파일 끝 체크 (루프 처리)
     if (this.curByte >= this.imsData.byteSize) {
-      console.log('[IMS tick] 파일 끝 도달', {
-        curByte: this.curByte,
-        byteSize: this.imsData.byteSize,
-        loopEnabled: this.loopEnabled
-      });
       if (this.loopEnabled) {
-        console.log('[IMS tick] 루프 활성화 - rewind() 호출');
         this.rewind();
       } else {
-        console.log('[IMS tick] 루프 비활성화 - 재생 중지');
         this.isPlaying = false;
         return 1;  // 0이 아닌 값을 반환하여 do-while 루프 종료
       }
@@ -126,6 +119,23 @@ export class IMSPlayer {
   private processEvent(): void {
     // Status byte 읽기
     let idcode = this.readByte();
+
+    // 루프 마커 체크 - 이벤트 처리 전에 먼저 확인
+    if (idcode === 0xfc) {
+      console.log('[IMS processEvent] 루프 마커(0xFC) 감지!', {
+        curByte: this.curByte,
+        loopEnabled: this.loopEnabled
+      });
+      if (this.loopEnabled) {
+        console.log('[IMS processEvent] 루프 활성화 - 처음부터 재생');
+        this.curByte = 0;
+        this.runningStatus = 0;
+      } else {
+        console.log('[IMS processEvent] 루프 비활성화 - 재생 중지');
+        this.isPlaying = false;
+      }
+      return;  // 루프마커에서 즉시 종료
+    }
 
     // Running status 처리
     if (idcode < 0x80) {
@@ -178,22 +188,30 @@ export class IMSPlayer {
    */
   private readDeltaTime(): number {
     let tDelay = 0;
+    let loopCount = 0;
 
     while (true) {
+      loopCount++;
+
       // 원본: ch=readmem(cur_byte++);
       const ch = this.readByte();
-      this.curByte++;
 
-      // 원본: if ( readmem(cur_byte)==0xfc ) cur_byte=0;
-      if (this.readByte() === 0xfc) {
+      // 루프마커 체크
+      if (ch === 0xfc) {
+        console.log('[readDeltaTime] 루프마커 감지!', {
+          curByte: this.curByte,
+          loopEnabled: this.loopEnabled
+        });
         if (this.loopEnabled) {
           this.curByte = 0;
           this.runningStatus = 0;
         } else {
           this.isPlaying = false;
-          return 1;  // 0이 아닌 값을 반환하여 do-while 루프 종료
         }
+        return 1;
       }
+
+      this.curByte++;
 
       // 원본: if ( ch==0xf8 ) { t_delay+=240; goto time_size; }
       if (ch === 0xf8) {
@@ -204,6 +222,17 @@ export class IMSPlayer {
       // 원본: if ( ch ) t_delay+=ch;
       if (ch) {
         tDelay += ch;
+      }
+
+      // 긴 딜레이 감지 - 10000틱 이상이면 곡 종료로 처리
+      if (tDelay >= 10000) {
+        console.log('[readDeltaTime] 비정상적으로 긴 딜레이 감지 - 곡 종료 처리', {
+          tDelay,
+          curByte: this.curByte,
+          loopCount
+        });
+        this.isPlaying = false;
+        return 1;
       }
 
       // 원본: return (t_delay);
