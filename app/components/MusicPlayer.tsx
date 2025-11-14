@@ -153,7 +153,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const [totalFilesToLoad, setTotalFilesToLoad] = useState<number>(0);
 
   // 현재 재생 중인 트랙
-  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0); // 리스트 UI 선택용
+  const [playingTrackIndex, setPlayingTrackIndex] = useState<number>(0); // 실제 재생 중인 곡 인덱스
   const [currentMusicFile, setCurrentMusicFile] = useState<File | null>(null);
   const [currentBnkFile, setCurrentBnkFile] = useState<File | null>(null);
   const [fileLoadKey, setFileLoadKey] = useState<number>(0);
@@ -425,6 +426,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
     setIsLoadingTrack(true);
     setCurrentTrackIndex(index);
+    setPlayingTrackIndex(index); // 실제 재생될 곡 인덱스 업데이트
 
     try {
       if (isUserFolder || files) {
@@ -582,15 +584,15 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
    */
   const playNextTrack = useCallback(() => {
     if (repeatMode === 'all') {
-      const nextIndex = (currentTrackIndex + 1) % musicList.length;
+      const nextIndex = (playingTrackIndex + 1) % musicList.length;
       loadTrack(nextIndex, undefined, undefined, true);
     } else if (repeatMode === 'none') {
-      if (currentTrackIndex < musicList.length - 1) {
-        const nextIndex = currentTrackIndex + 1;
+      if (playingTrackIndex < musicList.length - 1) {
+        const nextIndex = playingTrackIndex + 1;
         loadTrack(nextIndex, undefined, undefined, true);
       }
     }
-  }, [repeatMode, currentTrackIndex, musicList.length, loadTrack]);
+  }, [repeatMode, playingTrackIndex, musicList.length, loadTrack]);
 
   /**
    * 트랙 종료 감지 및 처리
