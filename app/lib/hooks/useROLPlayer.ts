@@ -13,6 +13,7 @@ import type { PlaybackState } from "../rol/types";
 interface UseROLPlayerOptions {
   rolFile: File | null;
   bnkFile: File | null;
+  fileLoadKey?: number;
 }
 
 interface UseROLPlayerReturn {
@@ -20,6 +21,7 @@ interface UseROLPlayerReturn {
   state: PlaybackState | null;
   isLoading: boolean;
   error: string | null;
+  isPlayerReady: boolean;
 
   // 재생 제어
   play: () => void;
@@ -34,6 +36,9 @@ interface UseROLPlayerReturn {
   setChannelVolume: (channel: number, volume: number) => void;
   setLoopEnabled: (enabled: boolean) => void;
   toggleChannel: (ch: number) => void;
+
+  // playerRef 직접 확인 (stale state 회피)
+  checkPlayerReady: () => boolean;
 }
 
 /**
@@ -42,10 +47,12 @@ interface UseROLPlayerReturn {
 export function useROLPlayer({
   rolFile,
   bnkFile,
+  fileLoadKey,
 }: UseROLPlayerOptions): UseROLPlayerReturn {
   const [state, setState] = useState<PlaybackState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
   // 채널 뮤트 상태 (재생 전에도 설정 가능)
   const [channelMuted, setChannelMuted] = useState<boolean[]>(new Array(11).fill(false));
@@ -65,7 +72,15 @@ export function useROLPlayer({
    * ROL/BNK 파일 로드 및 플레이어 초기화
    */
   useEffect(() => {
+    console.log('[useROLPlayer useEffect] 트리거됨', {
+      hasRolFile: !!rolFile,
+      rolFileName: rolFile?.name,
+      hasBnkFile: !!bnkFile,
+      fileLoadKey
+    });
+
     if (!rolFile || !bnkFile) {
+      console.log('[useROLPlayer useEffect] 파일 없음, 종료');
       return;
     }
 
@@ -73,6 +88,14 @@ export function useROLPlayer({
 
     const initializePlayer = async () => {
       try {
+        console.log('[useROLPlayer initializePlayer] 시작:', rolFile.name);
+
+        // 플레이어 준비 상태 리셋 (playerRef 정리 전에!)
+        setIsPlayerReady(false);
+
+        // playerRef를 먼저 null로 설정 (cleanup에서 제거)
+        playerRef.current = null;
+
         setIsLoading(true);
         setError(null);
         setState(null); // 이전 플레이어 상태 제거
@@ -131,14 +154,20 @@ export function useROLPlayer({
 
         // 초기 상태 설정
         fileNameRef.current = rolFile.name; // fileNameRef 업데이트
+
+        // 플레이어 준비 완료를 먼저 설정 (playerRef가 설정된 직후)
+        setIsPlayerReady(true);
+
         setState({
           ...player.getState(),
           fileName: rolFile.name,
           channelMuted: channelMuted.slice(0, rolData.channelNum),
         });
         setIsLoading(false);
+        console.log('[useROLPlayer initializePlayer] 완료:', rolFile.name);
       } catch (err) {
         if (!cancelled) {
+          console.error('[useROLPlayer initializePlayer] 에러:', err);
           setError(err instanceof Error ? err.message : "Unknown error");
           setIsLoading(false);
         }
@@ -151,7 +180,7 @@ export function useROLPlayer({
       cancelled = true;
       cleanup();
     };
-  }, [rolFile, bnkFile]);
+  }, [rolFile, bnkFile, fileLoadKey]);
 
   /**
    * 오디오 프로세서 초기화 (alib.js 예제 방식)
@@ -243,7 +272,7 @@ export function useROLPlayer({
     }
 
     lenGenRef.current = 0;
-    playerRef.current = null;
+    // playerRef는 initializePlayer 시작 시 null로 설정됨
   }, []);
 
 
@@ -455,10 +484,24 @@ export function useROLPlayer({
     }
   }, []);
 
+  /**
+   * playerRef 직접 확인 (stale state 회피)
+   */
+  const checkPlayerReady = useCallback(() => {
+    const isReady = !!(playerRef.current && audioContextRef.current);
+    console.log('[useROLPlayer.checkPlayerReady]', {
+      hasPlayer: !!playerRef.current,
+      hasAudioContext: !!audioContextRef.current,
+      isReady
+    });
+    return isReady;
+  }, []);
+
   return {
     state,
     isLoading,
     error,
+    isPlayerReady,
     play,
     pause,
     stop,
@@ -469,5 +512,6 @@ export function useROLPlayer({
     setChannelVolume,
     setLoopEnabled,
     toggleChannel,
+    checkPlayerReady,
   };
 }

@@ -156,6 +156,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0);
   const [currentMusicFile, setCurrentMusicFile] = useState<File | null>(null);
   const [currentBnkFile, setCurrentBnkFile] = useState<File | null>(null);
+  const [fileLoadKey, setFileLoadKey] = useState<number>(0);
 
   // 재생 상태
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('all');
@@ -182,17 +183,19 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const rolPlayer = useROLPlayer({
     rolFile: format === "ROL" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
+    fileLoadKey,
   });
 
   // IMS 플레이어
   const imsPlayer = useIMSPlayer({
     imsFile: format === "IMS" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
+    fileLoadKey,
   });
 
   // 현재 활성 플레이어 선택
   const player = format === "ROL" ? rolPlayer : imsPlayer;
-  const { state, isLoading, error, play, pause, stop, setVolume, setTempo, setMasterVolume } = player;
+  const { state, isLoading, error, isPlayerReady, play, pause, stop, setVolume, setTempo, setMasterVolume, checkPlayerReady } = player;
 
   // 음악 리스트 결정 (사용자 폴더 or 샘플)
   const isUserFolder = userFolderName && userMusicFiles.length > 0;
@@ -412,6 +415,14 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     bnkMap?: Map<string, File>,
     autoPlayAfterLoad: boolean = false
   ) => {
+    console.log('[loadTrack] 시작', { index, autoPlayAfterLoad });
+
+    // 현재 재생 중이면 정지
+    if (state?.isPlaying) {
+      console.log('[loadTrack] 현재 재생 중 -> stop() 호출');
+      stop();
+    }
+
     setIsLoadingTrack(true);
     setCurrentTrackIndex(index);
 
@@ -423,9 +434,11 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         const musicFile = musicFiles[index];
 
         if (!musicFile) {
+          console.log('[loadTrack] musicFile 없음');
           return;
         }
 
+        console.log('[loadTrack] 사용자 폴더 모드:', musicFile.name);
         const bnkFile = await findUserBnkFile(musicFile, userBnkMap);
 
         setCurrentMusicFile(musicFile);
@@ -434,9 +447,11 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         // 샘플 모드
         const sample = musicSamples[index];
         if (!sample) {
+          console.log('[loadTrack] sample 없음');
           return;
         }
 
+        console.log('[loadTrack] 샘플 모드:', sample.musicFile);
         const filename = sample.musicFile.split("/").pop() || "sample";
         const bnkPath = await findMatchingBnkFile(sample.musicFile);
         const bnkFilename = bnkPath.split("/").pop() || "STANDARD.BNK";
@@ -450,15 +465,23 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         setCurrentBnkFile(bnkFileObj);
       }
 
+      // fileLoadKey 증가 (플레이어 강제 재초기화)
+      setFileLoadKey(prev => {
+        console.log('[loadTrack] fileLoadKey 증가:', prev, '->', prev + 1);
+        return prev + 1;
+      });
+
       if (autoPlayAfterLoad) {
+        console.log('[loadTrack] autoPlay 설정');
         setAutoPlay(true);
       }
     } catch (error) {
-      // 오류 무시
+      console.error('[loadTrack] 에러:', error);
     } finally {
       setIsLoadingTrack(false);
+      console.log('[loadTrack] 완료');
     }
-  }, [isUserFolder, userMusicFiles, userBnkFiles, musicSamples]);
+  }, [isUserFolder, userMusicFiles, userBnkFiles, musicSamples, state?.isPlaying, stop]);
 
   /**
    * titleMap을 사용하여 샘플 목록에 제목 추가
@@ -495,16 +518,37 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
    * 플레이어 준비 완료 시 자동 재생
    */
   useEffect(() => {
-    if (!autoPlay || !state || !play || !currentMusicFile) return;
+    console.log('[autoPlay useEffect]', {
+      autoPlay,
+      isPlayerReady,
+      hasState: !!state,
+      stateFileName: state?.fileName,
+      hasPlay: !!play,
+      currentFileName: currentMusicFile?.name
+    });
+
+    if (!autoPlay || !state || !play || !currentMusicFile || !checkPlayerReady) {
+      console.log('[autoPlay useEffect] 조건 미충족 (기본 체크)');
+      return;
+    }
+
+    // playerRef 직접 확인 (stale state 회피)
+    if (!checkPlayerReady()) {
+      console.log('[autoPlay useEffect] playerRef 준비 안됨 (checkPlayerReady 실패)');
+      return;
+    }
 
     const stateFileName = state?.fileName;
     const currentFileName = currentMusicFile.name;
 
     if (stateFileName === currentFileName) {
+      console.log('[autoPlay useEffect] 재생 시작');
       play();
       setAutoPlay(false);
+    } else {
+      console.log('[autoPlay useEffect] 파일명 불일치', { stateFileName, currentFileName });
     }
-  }, [autoPlay, state, play, format, currentMusicFile]);
+  }, [autoPlay, isPlayerReady, state, play, format, currentMusicFile, checkPlayerReady]);
 
   /**
    * 플레이어 초기화 시 마스터 볼륨 설정
@@ -603,7 +647,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
               </div>
               <DosButton
                 onClick={() => {
-                  if (state?.isPlaying) stop();
                   loadTrack(index, undefined, undefined, true);
                 }}
                 disabled={isLoadingTrack}
@@ -637,7 +680,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
             </div>
             <DosButton
               onClick={() => {
-                if (state?.isPlaying) stop();
                 loadTrack(index, undefined, undefined, true);
               }}
               disabled={isLoadingTrack}

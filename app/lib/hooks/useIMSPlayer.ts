@@ -13,6 +13,7 @@ import type { IMSPlaybackState } from "../ims/ims-types";
 interface UseIMSPlayerOptions {
   imsFile: File | null;
   bnkFile: File | null;
+  fileLoadKey?: number;
 }
 
 interface UseIMSPlayerReturn {
@@ -20,6 +21,7 @@ interface UseIMSPlayerReturn {
   state: IMSPlaybackState | null;
   isLoading: boolean;
   error: string | null;
+  isPlayerReady: boolean;
 
   // 재생 제어
   play: () => void;
@@ -32,6 +34,9 @@ interface UseIMSPlayerReturn {
   setMasterVolume: (volume: number) => void;
   setLoopEnabled: (enabled: boolean) => void;
   toggleChannel: (ch: number) => void;
+
+  // playerRef 직접 확인 (stale state 회피)
+  checkPlayerReady: () => boolean;
 }
 
 /**
@@ -40,10 +45,12 @@ interface UseIMSPlayerReturn {
 export function useIMSPlayer({
   imsFile,
   bnkFile,
+  fileLoadKey,
 }: UseIMSPlayerOptions): UseIMSPlayerReturn {
   const [state, setState] = useState<IMSPlaybackState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
 
   // 채널 뮤트 상태 (재생 전에도 설정 가능)
   const [channelMuted, setChannelMuted] = useState<boolean[]>(new Array(11).fill(false));
@@ -62,7 +69,15 @@ export function useIMSPlayer({
    * IMS/BNK 파일 로드 및 플레이어 초기화
    */
   useEffect(() => {
+    console.log('[useIMSPlayer useEffect] 트리거됨', {
+      hasImsFile: !!imsFile,
+      imsFileName: imsFile?.name,
+      hasBnkFile: !!bnkFile,
+      fileLoadKey
+    });
+
     if (!imsFile || !bnkFile) {
+      console.log('[useIMSPlayer useEffect] 파일 없음, 종료');
       return;
     }
 
@@ -70,6 +85,14 @@ export function useIMSPlayer({
 
     const initializePlayer = async () => {
       try {
+        console.log('[useIMSPlayer initializePlayer] 시작:', imsFile.name);
+
+        // 플레이어 준비 상태 리셋 (playerRef 정리 전에!)
+        setIsPlayerReady(false);
+
+        // playerRef를 먼저 null로 설정 (cleanup에서 제거)
+        playerRef.current = null;
+
         setState(null); // 이전 플레이어 상태 제거
         setIsLoading(true);
         setError(null);
@@ -128,14 +151,20 @@ export function useIMSPlayer({
 
         // 초기 상태 설정
         fileNameRef.current = imsFile.name; // fileNameRef 업데이트
+
+        // 플레이어 준비 완료를 먼저 설정 (playerRef가 설정된 직후)
+        setIsPlayerReady(true);
+
         setState({
           ...player.getState(),
           fileName: imsFile.name,
           channelMuted: channelMuted.slice(0, imsData.chNum),
         });
         setIsLoading(false);
+        console.log('[useIMSPlayer initializePlayer] 완료:', imsFile.name);
       } catch (err) {
         if (!cancelled) {
+          console.error('[useIMSPlayer initializePlayer] 에러:', err);
           setError(err instanceof Error ? err.message : "Unknown error");
           setIsLoading(false);
         }
@@ -148,7 +177,7 @@ export function useIMSPlayer({
       cancelled = true;
       cleanup();
     };
-  }, [imsFile, bnkFile]);
+  }, [imsFile, bnkFile, fileLoadKey]);
 
   /**
    * 오디오 프로세서 초기화 (alib.js 예제 방식)
@@ -261,7 +290,7 @@ export function useIMSPlayer({
     }
 
     lenGenRef.current = 0;
-    playerRef.current = null;
+    // playerRef는 initializePlayer 시작 시 null로 설정됨
   }, []);
 
 
@@ -452,10 +481,24 @@ export function useIMSPlayer({
     }
   }, []);
 
+  /**
+   * playerRef 직접 확인 (stale state 회피)
+   */
+  const checkPlayerReady = useCallback(() => {
+    const isReady = !!(playerRef.current && audioContextRef.current);
+    console.log('[useIMSPlayer.checkPlayerReady]', {
+      hasPlayer: !!playerRef.current,
+      hasAudioContext: !!audioContextRef.current,
+      isReady
+    });
+    return isReady;
+  }, []);
+
   return {
     state,
     isLoading,
     error,
+    isPlayerReady,
     play,
     pause,
     stop,
@@ -464,5 +507,6 @@ export function useIMSPlayer({
     setMasterVolume,
     setLoopEnabled,
     toggleChannel,
+    checkPlayerReady,
   };
 }
