@@ -882,7 +882,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                     borderLeft: repeatMode === 'none' ? '2px solid black' : '2px solid white',
                     borderBottom: repeatMode === 'none' ? '2px solid white' : '2px solid black',
                     borderRight: repeatMode === 'none' ? '2px solid white' : '2px solid black',
-                    backgroundColor: repeatMode === 'none' ? 'teal' : '#C0C0C0',
+                    backgroundColor: repeatMode === 'none' ? '#00FF00' : '#C0C0C0',
                     color: 'black'
                   }}
                 >
@@ -903,7 +903,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                     borderLeft: repeatMode === 'all' ? '2px solid black' : '2px solid white',
                     borderBottom: repeatMode === 'all' ? '2px solid white' : '2px solid black',
                     borderRight: repeatMode === 'all' ? '2px solid white' : '2px solid black',
-                    backgroundColor: repeatMode === 'all' ? 'teal' : '#C0C0C0',
+                    backgroundColor: repeatMode === 'all' ? '#00FF00' : '#C0C0C0',
                     color: 'black'
                   }}
                 >
@@ -924,7 +924,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                     borderLeft: repeatMode === 'one' ? '2px solid black' : '2px solid white',
                     borderBottom: repeatMode === 'one' ? '2px solid white' : '2px solid black',
                     borderRight: repeatMode === 'one' ? '2px solid white' : '2px solid black',
-                    backgroundColor: repeatMode === 'one' ? 'teal' : '#C0C0C0',
+                    backgroundColor: repeatMode === 'one' ? '#00FF00' : '#C0C0C0',
                     color: 'black'
                   }}
                 >
