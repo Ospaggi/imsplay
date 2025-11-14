@@ -194,7 +194,17 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   // 음악 리스트 결정 (사용자 폴더 or 샘플)
   const isUserFolder = userFolderName && userMusicFiles.length > 0;
   const musicList = isUserFolder ? userMusicFiles : musicSamples;
-  const folderTitle = `${userFolderName ? "📁 " + userFolderName : "샘플 음악"}`;
+  const folderTitle = useMemo(() => {
+    if (userFolderName) {
+      return (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <img src="/images/folder.png" alt="folder" width="16" height="16" style={{ display: 'block' }} />
+          <span style={{ textTransform: 'uppercase' }}>{userFolderName}</span>
+        </span>
+      );
+    }
+    return "샘플 음악";
+  }, [userFolderName]);
 
   /**
    * 폴더에서 파일 읽기 (재귀적)
@@ -701,11 +711,15 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 fontSize: '16px',
                 marginBottom: '2px',
               }}>
-                📁 음악 파일 로딩 중
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', justifyContent: 'center' }}>
+                  <img src="/images/folder.png" alt="folder" width="16" height="16" style={{ display: 'block' }} />
+                  음악 파일 로딩 중
+                </div>
               </div>
               <div style={{
                 color: 'var(--color-white)',
                 fontSize: '16px',
+                textTransform: 'uppercase'
               }}>
                 /{userFolderName || '폴더'}
               </div>
@@ -835,12 +849,19 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                   boxSizing: 'border-box',
                 }}
               >
-                <span style={{ color: isDragging ? 'var(--color-yellow)' : 'black' }}>
+                <span style={{
+                  color: isDragging ? 'var(--color-yellow)' : 'black',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  justifyContent: 'center'
+                }}>
+                  <img src="/images/folder.png" alt="folder" width="16" height="16" style={{ display: 'block' }} />
                   {isDragging
-                    ? '📁 여기에 폴더를 놓으세요'
+                    ? '여기에 폴더를 놓으세요'
                     : userFolderName
-                      ? `📁 ${userFolderName}`
-                      : '📁 폴더를 드래그하거나 클릭하여 선택'}
+                      ? <span style={{ textTransform: 'uppercase' }}>{userFolderName}</span>
+                      : '폴더를 드래그하거나 클릭하여 선택'}
                 </span>
               </div>
             </div>
