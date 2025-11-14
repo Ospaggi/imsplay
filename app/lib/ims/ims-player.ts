@@ -84,7 +84,7 @@ export class IMSPlayer {
    */
   tick(): number {
     if (!this.isPlaying) {
-      return 0;
+      return 1;  // 0이 아닌 값을 반환하여 do-while 루프 종료
     }
 
     // 디스플레이 볼륨 decay
@@ -107,7 +107,7 @@ export class IMSPlayer {
       } else {
         console.log('[IMS tick] 루프 비활성화 - 재생 중지');
         this.isPlaying = false;
-        return 0;
+        return 1;  // 0이 아닌 값을 반환하여 do-while 루프 종료
       }
     }
 
@@ -191,7 +191,7 @@ export class IMSPlayer {
           this.runningStatus = 0;
         } else {
           this.isPlaying = false;
-          return 0;
+          return 1;  // 0이 아닌 값을 반환하여 do-while 루프 종료
         }
       }
 
