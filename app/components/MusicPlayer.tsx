@@ -194,7 +194,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   // 음악 리스트 결정 (사용자 폴더 or 샘플)
   const isUserFolder = userFolderName && userMusicFiles.length > 0;
   const musicList = isUserFolder ? userMusicFiles : musicSamples;
-  const folderTitle = `📁 ${userFolderName || "샘플 음악"}`;
+  const folderTitle = `${userFolderName ? "📁 " + userFolderName : "샘플 음악"}`;
 
   /**
    * 폴더에서 파일 읽기 (재귀적)
@@ -791,7 +791,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
           도스박물관
         </a>
         {" "}IMS/ROL 웹플레이어 v1.28
-        {format && ` - ${format} 모드`}
       </div>
 
       {/* 메인 그리드 */}
@@ -955,7 +954,19 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                     : '--:-- / --:--'
                   }
                 </div>
-                <div className="dos-progress-text" style={{ position: 'absolute', right: '8px' }}>
+                <div style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: 0,
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--color-white)',
+                  fontSize: '16px',
+                  fontWeight: 'normal',
+                  pointerEvents: 'none',
+                  mixBlendMode: 'difference'
+                }}>
                   BPM: {state?.currentTempo ? Math.floor(state.currentTempo) : '--'}
                 </div>
               </div>
