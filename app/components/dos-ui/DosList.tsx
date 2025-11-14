@@ -13,13 +13,14 @@ interface DosListItem {
 interface DosListProps {
   items: DosListItem[];
   selectedKey?: string;
+  scrollToIndex?: number;
   className?: string;
 }
 
 const ITEM_HEIGHT = 32; // 각 아이템의 고정 높이 (px)
 const BUFFER_SIZE = 10; // 위아래 버퍼 아이템 개수
 
-export default function DosList({ items, selectedKey, className = "" }: DosListProps) {
+export default function DosList({ items, selectedKey, scrollToIndex, className = "" }: DosListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -30,6 +31,20 @@ export default function DosList({ items, selectedKey, className = "" }: DosListP
       setContainerHeight(containerRef.current.clientHeight);
     }
   }, []);
+
+  // 전체 높이 계산
+  const totalHeight = items.length * ITEM_HEIGHT;
+
+  // 자동 스크롤 (선택된 아이템으로)
+  useEffect(() => {
+    if (scrollToIndex !== undefined && containerRef.current && containerHeight > 0) {
+      // 선택된 아이템이 중앙에 오도록 스크롤 위치 계산
+      const targetScrollTop = scrollToIndex * ITEM_HEIGHT - containerHeight / 2 + ITEM_HEIGHT / 2;
+      // 경계값 처리 (맨 위/맨 아래)
+      const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, totalHeight - containerHeight));
+      containerRef.current.scrollTop = clampedScrollTop;
+    }
+  }, [scrollToIndex, containerHeight, totalHeight]);
 
   // 스크롤 이벤트 핸들러
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -44,8 +59,7 @@ export default function DosList({ items, selectedKey, className = "" }: DosListP
   // 렌더링할 아이템
   const visibleItems = items.slice(startIndex, endIndex);
 
-  // 전체 높이 및 오프셋
-  const totalHeight = items.length * ITEM_HEIGHT;
+  // 오프셋
   const offsetY = startIndex * ITEM_HEIGHT;
 
   return (
