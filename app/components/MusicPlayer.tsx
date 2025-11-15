@@ -965,7 +965,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 onClick={() => (window as any).__folderInput?.click()}
                 style={{
                   flex: 1,
-                  height: '26px',
+                  height: '28px',
                   borderTop: isDragging ? '2px solid var(--color-yellow)' : '2px solid white',
                   borderLeft: isDragging ? '2px solid var(--color-yellow)' : '2px solid white',
                   borderBottom: isDragging ? '2px solid var(--color-yellow)' : '2px solid black',
@@ -1000,77 +1000,78 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
             {/* 재생 컨트롤 */}
             <div className="flex gap-8">
-              {/* 이전 곡 */}
-              <DosButton
-                onClick={playPreviousTrack}
-                disabled={!state || (repeatMode === 'none' && playingTrackIndex === 0)}
-                style={{
-                  width: '32px',
-                  height: '28px',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <SkipBack size={16} />
-              </DosButton>
+              {/* 플레이 컨트롤 버튼 그룹 */}
+              <div className="flex" style={{ gap: '2px', flex: 1 }}>
+                {/* 이전 곡 */}
+                <DosButton
+                  onClick={playPreviousTrack}
+                  disabled={!state || (repeatMode === 'none' && playingTrackIndex === 0)}
+                  style={{
+                    flex: 1,
+                    height: '28px',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <SkipBack size={16} />
+                </DosButton>
 
-              {/* 재생/일시정지 */}
-              <DosButton
-                onClick={() => {
-                  if (state?.isPaused) {
-                    play();
-                  } else {
-                    pause();
-                  }
-                }}
-                disabled={!state || (!state.isPlaying && !state.isPaused)}
-                variant={state?.isPaused ? "play" : "pause"}
-                style={{
-                  width: '32px',
-                  height: '28px',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                {state?.isPaused ? <Play size={16} /> : <Pause size={16} />}
-              </DosButton>
+                {/* 재생/일시정지 */}
+                <DosButton
+                  onClick={() => {
+                    if (state?.isPaused) {
+                      play();
+                    } else {
+                      pause();
+                    }
+                  }}
+                  disabled={!state || (!state.isPlaying && !state.isPaused)}
+                  style={{
+                    flex: 1,
+                    height: '28px',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  {state?.isPaused ? <Play size={16} /> : <Pause size={16} />}
+                </DosButton>
 
-              {/* 정지 */}
-              <DosButton
-                onClick={stop}
-                disabled={!state}
-                variant="stop"
-                style={{
-                  width: '32px',
-                  height: '28px',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Square size={16} />
-              </DosButton>
+                {/* 정지 */}
+                <DosButton
+                  onClick={stop}
+                  disabled={!state}
+                  style={{
+                    flex: 1,
+                    height: '28px',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Square size={16} />
+                </DosButton>
 
-              {/* 다음 곡 */}
-              <DosButton
-                onClick={playNextTrack}
-                disabled={!state || (repeatMode === 'none' && playingTrackIndex === musicList.length - 1)}
-                style={{
-                  width: '32px',
-                  height: '28px',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <SkipForward size={16} />
-              </DosButton>
+                {/* 다음 곡 */}
+                <DosButton
+                  onClick={playNextTrack}
+                  disabled={!state || (repeatMode === 'none' && playingTrackIndex === musicList.length - 1)}
+                  style={{
+                    flex: 1,
+                    height: '28px',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <SkipForward size={16} />
+                </DosButton>
+              </div>
 
               {/* 반복 모드 */}
               <div className="flex" style={{ gap: '2px', margin: 0 }}>
@@ -1078,8 +1079,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                   onClick={() => setRepeatMode('none')}
                   active={repeatMode === 'none'}
                   style={{
-                    width: '26px',
-                    height: '26px',
+                    width: '28px',
+                    height: '28px',
                     padding: '2px',
                     margin: 0,
                     display: 'flex',
@@ -1099,8 +1100,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                   onClick={() => setRepeatMode('all')}
                   active={repeatMode === 'all'}
                   style={{
-                    width: '26px',
-                    height: '26px',
+                    width: '28px',
+                    height: '28px',
                     padding: '2px',
                     margin: 0,
                     display: 'flex',
@@ -1120,8 +1121,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                   onClick={() => setRepeatMode('one')}
                   active={repeatMode === 'one'}
                   style={{
-                    width: '26px',
-                    height: '26px',
+                    width: '28px',
+                    height: '28px',
                     padding: '2px',
                     margin: 0,
                     display: 'flex',
