@@ -15,7 +15,7 @@ import DosButton from "~/components/dos-ui/DosButton";
 import DosList from "~/components/dos-ui/DosList";
 import DosSlider from "~/components/dos-ui/DosSlider";
 import PianoRoll from "./PianoRoll";
-import { X, Repeat1, Repeat, Play } from "lucide-react";
+import { X, Repeat1, Repeat, Play, Pause, Square, SkipBack, SkipForward } from "lucide-react";
 
 type MusicFormat = "ROL" | "IMS" | null;
 type RepeatMode = 'none' | 'all' | 'one';
@@ -199,7 +199,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
   // 현재 활성 플레이어 선택
   const player = format === "ROL" ? rolPlayer : imsPlayer;
-  const { state, isLoading, error, isPlayerReady, play, pause, stop, setVolume, setTempo, setMasterVolume, checkPlayerReady } = player;
+  const { state, error, isPlayerReady, play, pause, stop, setVolume, setTempo, setMasterVolume, checkPlayerReady } = player;
 
   // 음악 리스트 결정 (사용자 폴더 or 샘플)
   const isUserFolder = userFolderName && userMusicFiles.length > 0;
@@ -273,7 +273,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     setUserFolderName(folderName); // 폴더명 먼저 설정
 
     setIsProcessingFiles(true); // 로딩 시작
-    const startTime = Date.now(); // 로딩 시간 측정 시작
     setCurrentLoadingFile(""); // 로딩 파일명 초기화
     setLoadedFileCount(0); // 로딩 카운트 초기화
 
@@ -587,6 +586,21 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   }, [repeatMode, format, currentMusicFile]);
 
   /**
+   * 이전 곡 재생
+   */
+  const playPreviousTrack = useCallback(() => {
+    if (repeatMode === 'all') {
+      const prevIndex = playingTrackIndex === 0 ? musicList.length - 1 : playingTrackIndex - 1;
+      loadTrack(prevIndex, undefined, undefined, true);
+    } else if (repeatMode === 'none') {
+      if (playingTrackIndex > 0) {
+        const prevIndex = playingTrackIndex - 1;
+        loadTrack(prevIndex, undefined, undefined, true);
+      }
+    }
+  }, [repeatMode, playingTrackIndex, musicList.length, loadTrack]);
+
+  /**
    * 다음 곡 재생
    */
   const playNextTrack = useCallback(() => {
@@ -618,6 +632,85 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       return () => clearTimeout(timeoutId);
     }
   }, [state?.isPlaying, state?.currentByte, state?.totalSize, state?.fileName, repeatMode, currentMusicFile, isLoadingTrack, currentTrackIndex, playNextTrack]);
+
+  /**
+   * Media Session API 통합 (블루투스 이어폰 제어 지원)
+   */
+  useEffect(() => {
+    if ("mediaSession" in navigator) {
+      // 액션 핸들러 설정
+      const handlePlay = () => {
+        console.error('[Media Session] Play button pressed');
+        if (play) {
+          play();
+        }
+      };
+
+      const handlePause = () => {
+        console.error('[Media Session] Pause button pressed');
+        if (pause) {
+          pause();
+        }
+      };
+
+      const handlePreviousTrack = () => {
+        console.error('[Media Session] Previous track button pressed');
+        playPreviousTrack();
+      };
+
+      const handleNextTrack = () => {
+        console.error('[Media Session] Next track button pressed');
+        playNextTrack();
+      };
+
+      const handleStop = () => {
+        console.error('[Media Session] Stop button pressed');
+        if (stop) {
+          stop();
+        }
+      };
+
+      navigator.mediaSession.setActionHandler("play", handlePlay);
+      navigator.mediaSession.setActionHandler("pause", handlePause);
+      navigator.mediaSession.setActionHandler("previoustrack", handlePreviousTrack);
+      navigator.mediaSession.setActionHandler("nexttrack", handleNextTrack);
+      navigator.mediaSession.setActionHandler("stop", handleStop);
+    }
+
+    return () => {
+      // cleanup: 핸들러 제거
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.setActionHandler("play", null);
+        navigator.mediaSession.setActionHandler("pause", null);
+        navigator.mediaSession.setActionHandler("previoustrack", null);
+        navigator.mediaSession.setActionHandler("nexttrack", null);
+        navigator.mediaSession.setActionHandler("stop", null);
+      }
+    };
+  }, [play, pause, stop, playPreviousTrack, playNextTrack]);
+
+  /**
+   * Media Session 메타데이터 업데이트
+   */
+  useEffect(() => {
+    if ("mediaSession" in navigator && currentMusicFile) {
+      const title = isUserFolder
+        ? userMusicFileTitles.get(currentMusicFile.name) || currentMusicFile.name.replace(/\.(ims|rol)$/i, '')
+        : musicSamples[currentTrackIndex]?.title || currentMusicFile.name.replace(/\.(ims|rol)$/i, '');
+
+      const artist = format === "IMS" ? "IMS Music" : "AdLib ROL Music";
+      const album = isUserFolder ? userFolderName : "샘플 음악";
+
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: title,
+        artist: artist,
+        album: album,
+      });
+
+      // 재생 상태 업데이트
+      navigator.mediaSession.playbackState = state?.isPlaying ? "playing" : "paused";
+    }
+  }, [currentMusicFile, state?.isPlaying, isUserFolder, userMusicFileTitles, musicSamples, currentTrackIndex, format, userFolderName]);
 
   // progress bar
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
@@ -905,8 +998,25 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
               </div>
             </div>
 
-            {/* 재생 컨트롤 (일시정지/정지만) */}
+            {/* 재생 컨트롤 */}
             <div className="flex gap-8">
+              {/* 이전 곡 */}
+              <DosButton
+                onClick={playPreviousTrack}
+                disabled={!state || (repeatMode === 'none' && playingTrackIndex === 0)}
+                style={{
+                  width: '32px',
+                  height: '28px',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <SkipBack size={16} />
+              </DosButton>
+
+              {/* 재생/일시정지 */}
               <DosButton
                 onClick={() => {
                   if (state?.isPaused) {
@@ -917,17 +1027,49 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 }}
                 disabled={!state || (!state.isPlaying && !state.isPaused)}
                 variant={state?.isPaused ? "play" : "pause"}
-                style={{ flex: 1, padding: '2px 8px' }}
+                style={{
+                  width: '32px',
+                  height: '28px',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
-                {state?.isPaused ? '재생' : '일시정지'}
+                {state?.isPaused ? <Play size={16} /> : <Pause size={16} />}
               </DosButton>
+
+              {/* 정지 */}
               <DosButton
                 onClick={stop}
                 disabled={!state}
                 variant="stop"
-                style={{ flex: 1, padding: '2px 8px' }}
+                style={{
+                  width: '32px',
+                  height: '28px',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
               >
-                정지
+                <Square size={16} />
+              </DosButton>
+
+              {/* 다음 곡 */}
+              <DosButton
+                onClick={playNextTrack}
+                disabled={!state || (repeatMode === 'none' && playingTrackIndex === musicList.length - 1)}
+                style={{
+                  width: '32px',
+                  height: '28px',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <SkipForward size={16} />
               </DosButton>
 
               {/* 반복 모드 */}
