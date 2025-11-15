@@ -2,13 +2,14 @@
  * MusicPlayer.tsx - 통합 음악 플레이어 UI 컴포넌트
  *
  * Impulse Tracker 스타일 DOS UI
- * v1.25 - 폴더 선택 방식으로 리팩토링
+ * v1.34 - Media Session API 활성화 (무음 오디오 워크어라운드)
  */
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useFetcher } from "react-router";
 import { useROLPlayer } from "~/lib/hooks/useROLPlayer";
 import { useIMSPlayer } from "~/lib/hooks/useIMSPlayer";
+import { generateSilentAudioDataURL } from "~/lib/utils/silent-audio";
 import ChannelVisualizer from "./ChannelVisualizer";
 import DosPanel from "~/components/dos-ui/DosPanel";
 import DosButton from "~/components/dos-ui/DosButton";
@@ -171,6 +172,10 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   // 드래그 앤 드롭 상태
   const [isDragging, setIsDragging] = useState(false);
 
+  // Media Session용 무음 오디오
+  const silentAudioRef = useRef<HTMLAudioElement>(null);
+  const [silentAudioURL, setSilentAudioURL] = useState<string>("");
+
   // 로딩 표시 (파일 처리 중이거나 fetcher 실행 중)
   const isLoadingFolder = isProcessingFiles || fetcher.state === 'submitting' || fetcher.state === 'loading';
 
@@ -188,6 +193,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     rolFile: format === "ROL" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
     fileLoadKey,
+    silentAudioRef,
   });
 
   // IMS 플레이어
@@ -195,6 +201,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     imsFile: format === "IMS" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
     fileLoadKey,
+    silentAudioRef,
   });
 
   // 현재 활성 플레이어 선택
@@ -634,66 +641,24 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   }, [state?.isPlaying, state?.currentByte, state?.totalSize, state?.fileName, repeatMode, currentMusicFile, isLoadingTrack, currentTrackIndex, playNextTrack]);
 
   /**
-   * Media Session API 통합 (블루투스 이어폰 제어 지원)
+   * Media Session API 통합 (블루투스 이어폰, 잠금 화면 제어 지원)
    */
   useEffect(() => {
-    if ("mediaSession" in navigator) {
-      // 액션 핸들러 설정
-      const handlePlay = () => {
-        console.error('[Media Session] Play button pressed');
-        if (play) {
-          play();
-        }
-      };
-
-      const handlePause = () => {
-        console.error('[Media Session] Pause button pressed');
-        if (pause) {
-          pause();
-        }
-      };
-
-      const handlePreviousTrack = () => {
-        console.error('[Media Session] Previous track button pressed');
-        playPreviousTrack();
-      };
-
-      const handleNextTrack = () => {
-        console.error('[Media Session] Next track button pressed');
-        playNextTrack();
-      };
-
-      const handleStop = () => {
-        console.error('[Media Session] Stop button pressed');
-        if (stop) {
-          stop();
-        }
-      };
-
-      navigator.mediaSession.setActionHandler("play", handlePlay);
-      navigator.mediaSession.setActionHandler("pause", handlePause);
-      navigator.mediaSession.setActionHandler("previoustrack", handlePreviousTrack);
-      navigator.mediaSession.setActionHandler("nexttrack", handleNextTrack);
-      navigator.mediaSession.setActionHandler("stop", handleStop);
+    if (!("mediaSession" in navigator)) {
+      return;
     }
 
-    return () => {
-      // cleanup: 핸들러 제거
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.setActionHandler("play", null);
-        navigator.mediaSession.setActionHandler("pause", null);
-        navigator.mediaSession.setActionHandler("previoustrack", null);
-        navigator.mediaSession.setActionHandler("nexttrack", null);
-        navigator.mediaSession.setActionHandler("stop", null);
-      }
-    };
-  }, [play, pause, stop, playPreviousTrack, playNextTrack]);
+    // 재생 상태 먼저 설정 (핸들러보다 먼저)
+    if (state?.isPlaying) {
+      navigator.mediaSession.playbackState = "playing";
+    } else if (state?.isPaused) {
+      navigator.mediaSession.playbackState = "paused";
+    } else {
+      navigator.mediaSession.playbackState = "none";
+    }
 
-  /**
-   * Media Session 메타데이터 업데이트
-   */
-  useEffect(() => {
-    if ("mediaSession" in navigator && currentMusicFile) {
+    // 메타데이터 업데이트
+    if (currentMusicFile) {
       const title = isUserFolder
         ? userMusicFileTitles.get(currentMusicFile.name) || currentMusicFile.name.replace(/\.(ims|rol)$/i, '')
         : musicSamples[currentTrackIndex]?.title || currentMusicFile.name.replace(/\.(ims|rol)$/i, '');
@@ -706,11 +671,45 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         artist: artist,
         album: album,
       });
-
-      // 재생 상태 업데이트
-      navigator.mediaSession.playbackState = state?.isPlaying ? "playing" : "paused";
     }
-  }, [currentMusicFile, state?.isPlaying, isUserFolder, userMusicFileTitles, musicSamples, currentTrackIndex, format, userFolderName]);
+
+    // 액션 핸들러 설정
+    navigator.mediaSession.setActionHandler("play", () => {
+      console.log('[Media Session] Play');
+      if (play) play();
+    });
+
+    navigator.mediaSession.setActionHandler("pause", () => {
+      console.log('[Media Session] Pause');
+      if (pause) pause();
+    });
+
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      console.log('[Media Session] Previous Track');
+      playPreviousTrack();
+    });
+
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      console.log('[Media Session] Next Track');
+      playNextTrack();
+    });
+
+    navigator.mediaSession.setActionHandler("stop", () => {
+      console.log('[Media Session] Stop');
+      if (stop) stop();
+    });
+
+    return () => {
+      // cleanup: 핸들러 제거
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.setActionHandler("play", null);
+        navigator.mediaSession.setActionHandler("pause", null);
+        navigator.mediaSession.setActionHandler("previoustrack", null);
+        navigator.mediaSession.setActionHandler("nexttrack", null);
+        navigator.mediaSession.setActionHandler("stop", null);
+      }
+    };
+  }, [state?.isPlaying, state?.isPaused, currentMusicFile, play, pause, stop, playPreviousTrack, playNextTrack, isUserFolder, userMusicFileTitles, musicSamples, currentTrackIndex, format, userFolderName]);
 
   // progress bar
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
@@ -808,6 +807,20 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       return musicSamples[playingTrackIndex]?.title || currentMusicFile?.name || '?';
     }
   }, [isUserFolder, userMusicFiles, userMusicFileTitles, musicSamples, playingTrackIndex, currentMusicFile]);
+
+  /**
+   * Media Session용 무음 오디오 초기화
+   */
+  useEffect(() => {
+    // 10초 무음 오디오 생성 (loop로 계속 재생)
+    const url = generateSilentAudioDataURL(10);
+    setSilentAudioURL(url);
+
+    return () => {
+      // cleanup: data URL은 메모리에만 있으므로 별도 revoke 불필요
+      setSilentAudioURL("");
+    };
+  }, []);
 
   return (
     <div className="dos-container">
@@ -1260,6 +1273,17 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
           ) : "대기"}
         </div>
       </div>
+
+      {/* Media Session용 무음 오디오 엘리먼트 */}
+      {silentAudioURL && (
+        <audio
+          ref={silentAudioRef}
+          src={silentAudioURL}
+          loop
+          style={{ display: 'none' }}
+          preload="auto"
+        />
+      )}
     </div>
   );
 }
