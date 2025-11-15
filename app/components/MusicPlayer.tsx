@@ -284,62 +284,40 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     setLoadedFileCount(0); // 로딩 카운트 초기화
 
     try {
-
       // 파일 분류 (대소문자 구별 없이)
       const musicFiles = files.filter(f => /\.(ims|rol)$/i.test(f.name));
       const bnkFiles = files.filter(f => /\.bnk$/i.test(f.name));
 
-      // 파일 개수에 따라 적절한 로딩 시간 계산
-      const allFiles = [...musicFiles, ...bnkFiles];
-      setTotalFilesToLoad(allFiles.length);
-
-      // 파일당 50ms 기준, 최소 3초 ~ 최대 8초
-      const totalDisplayTime = Math.min(8000, Math.max(3000, allFiles.length * 50));
-      const delayPerFile = Math.max(1, totalDisplayTime / allFiles.length);
-
-      // 파일 표시 애니메이션 시작
-      for (let i = 0; i < allFiles.length; i++) {
-        setTimeout(() => {
-          setLoadedFileCount(i + 1);
-          setCurrentLoadingFile(allFiles[i].name);
-        }, i * delayPerFile);
-      }
-
-      // 계산된 시간만큼 대기
-      await new Promise(resolve => setTimeout(resolve, totalDisplayTime));
-
       // BNK 파일을 Map으로 변환 (파일명 소문자 → File 객체)
       const bnkMap = new Map(bnkFiles.map(f => [f.name.toLowerCase(), f]));
 
-      // IMS 파일만 필터링하여 서버에 전송
-      const imsFiles = musicFiles.filter(f => /\.ims$/i.test(f.name));
-      const rolFiles = musicFiles.filter(f => /\.rol$/i.test(f.name));
-
-      // 제목 Map 초기화 (ROL은 파일명 사용)
+      // 제목 Map 초기화
       const titlesMap = new Map<string, string>();
-      rolFiles.forEach(file => {
-        titlesMap.set(file.name, file.name.replace(/\.(ims|rol)$/i, ''));
-      });
 
-      // IMS 파일이 있으면 서버에 제목 추출 요청 (배치 처리)
-      if (imsFiles.length > 0) {
-        // 일단 파일명으로 초기화
-        imsFiles.forEach(file => {
-          titlesMap.set(file.name, file.name.replace(/\.ims$/i, ''));
+      // 전체 처리할 파일 수
+      setTotalFilesToLoad(musicFiles.length);
+      setLoadedFileCount(0);
+
+      let processedCount = 0;
+      const BATCH_SIZE = 10;
+
+      // 모든 음악 파일을 배치로 처리 (ROL + IMS 함께)
+      for (let i = 0; i < musicFiles.length; i += BATCH_SIZE) {
+        const batch = musicFiles.slice(i, i + BATCH_SIZE);
+
+        // 배치에서 IMS와 ROL 분리
+        const batchImsFiles = batch.filter(f => /\.ims$/i.test(f.name));
+        const batchRolFiles = batch.filter(f => /\.rol$/i.test(f.name));
+
+        // ROL 파일은 즉시 처리
+        batchRolFiles.forEach(file => {
+          titlesMap.set(file.name, file.name.replace(/\.rol$/i, ''));
         });
 
-        // 배치 크기 설정 (한 번에 50개씩 처리)
-        const BATCH_SIZE = 50;
-        const batches: File[][] = [];
-
-        for (let i = 0; i < imsFiles.length; i += BATCH_SIZE) {
-          batches.push(imsFiles.slice(i, i + BATCH_SIZE));
-        }
-
-        // 각 배치를 순차적으로 처리
-        const processBatch = async (batch: File[], batchIndex: number) => {
+        // IMS 파일이 있으면 API 호출
+        if (batchImsFiles.length > 0) {
           const formData = new FormData();
-          batch.forEach((file, index) => {
+          batchImsFiles.forEach((file, index) => {
             formData.append(`ims-${index}`, file);
           });
 
@@ -351,24 +329,35 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
             if (response.ok) {
               const data = await response.json();
-              // 제목 Map 업데이트
               Object.entries(data.titleMap).forEach(([fileName, title]) => {
                 titlesMap.set(fileName, title as string);
               });
-              // 상태 업데이트하여 UI에 반영
               setUserMusicFileTitles(new Map(titlesMap));
+            } else if (response.status === 413) {
+              console.warn(`Batch 크기가 너무 큽니다. 배치 크기를 줄이세요.`);
+              batchImsFiles.forEach(file => {
+                titlesMap.set(file.name, file.name.replace(/\.ims$/i, ''));
+              });
             }
           } catch (error) {
-            console.error(`Batch ${batchIndex + 1} failed:`, error);
+            console.error(`Batch 처리 실패:`, error);
+            batchImsFiles.forEach(file => {
+              titlesMap.set(file.name, file.name.replace(/\.ims$/i, ''));
+            });
           }
-        };
+        }
 
-        // 모든 배치를 순차적으로 처리 (백그라운드에서)
-        (async () => {
-          for (let i = 0; i < batches.length; i++) {
-            await processBatch(batches[i], i);
-          }
-        })();
+        // 진행률 업데이트 및 배치 파일명 순차 표시
+        for (let j = 0; j < batch.length; j++) {
+          setCurrentLoadingFile(batch[j].name);
+          setLoadedFileCount(processedCount + j + 1);
+          // 파일명 표시 간격
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
+
+        // 배치 완료 후 최종 카운트 업데이트
+        processedCount += batch.length;
+        setLoadedFileCount(processedCount);
       }
 
       setUserMusicFiles(musicFiles);
@@ -381,9 +370,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         loadTrack(0, musicFiles, bnkMap, false);
       }
     } catch (error) {
-      // 오류 무시
+      console.error('파일 처리 오류:', error);
     } finally {
-      setIsProcessingFiles(false); // 로딩 완료
+      setIsProcessingFiles(false);
     }
   }, [fetcher, state, stop]);
 
@@ -870,34 +859,14 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
               </div>
             </div>
 
-            {/* 로딩 프로그레스 바 */}
-            <div style={{ marginBottom: '12px', width: '100%' }}>
+            {/* 로딩 상태 */}
+            <div style={{ marginBottom: '12px' }}>
               <div style={{
                 color: 'var(--color-cyan)',
                 fontSize: '16px',
-                marginBottom: '4px',
-                display: 'flex',
-                alignItems: 'center',
+                textAlign: 'center',
               }}>
-                파일 로딩 중... ({loadedFileCount} / {totalFilesToLoad})
-              </div>
-              <div style={{
-                width: '100%',
-                height: '14px',
-                backgroundColor: '#808080',
-                borderTop: '2px solid black',
-                borderLeft: '2px solid black',
-                borderBottom: '2px solid white',
-                borderRight: '2px solid white',
-                boxSizing: 'border-box',
-                display: 'flex',
-                alignItems: 'stretch',
-              }}>
-                <div style={{
-                  width: `${totalFilesToLoad > 0 ? (loadedFileCount / totalFilesToLoad) * 100 : 0}%`,
-                  backgroundColor: '#FFFF00',
-                  transition: 'width 0.1s linear',
-                }} />
+                파일 로딩 중... {loadedFileCount} / {totalFilesToLoad}
               </div>
             </div>
 
@@ -949,7 +918,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.33
+        {" "}IMS/ROL 웹플레이어 v1.34
       </div>
 
       {/* 메인 그리드 */}
