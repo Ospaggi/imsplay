@@ -9,6 +9,8 @@ interface DosSliderProps {
   max: number;
   onChange: (value: number) => void;
   unit?: string;
+  onReset?: () => void;
+  showReset?: boolean;
 }
 
 export default function DosSlider({
@@ -18,9 +20,21 @@ export default function DosSlider({
   max,
   onChange,
   unit = "",
+  onReset,
+  showReset = false,
 }: DosSliderProps) {
   return (
     <div className="dos-slider-container">
+      {showReset && onReset && (
+        <button
+          onClick={onReset}
+          className="dos-reset-button"
+          style={{ width: '16px', height: '16px' }}
+          title="초기값으로 복원"
+        >
+          ↻
+        </button>
+      )}
       <div className="dos-slider-label">{label}</div>
       <div className="dos-slider-track">
         <input

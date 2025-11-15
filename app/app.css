@@ -400,6 +400,35 @@ body {
   font-size: 16px;
 }
 
+.dos-reset-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--color-silver);
+  border-top: 1px solid var(--border-light);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-shadow);
+  border-bottom: 1px solid var(--border-shadow);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-main);
+  font-family: inherit;
+  flex-shrink: 0;
+}
+
+.dos-reset-button:hover {
+  background: var(--color-white);
+}
+
+.dos-reset-button:active {
+  background: var(--color-gray);
+  border-top: 1px solid var(--border-shadow);
+  border-left: 1px solid var(--border-shadow);
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
 /* Progress Bar */
 .dos-progress-bar {
   position: relative;

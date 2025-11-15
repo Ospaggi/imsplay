@@ -918,7 +918,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.34
+        {" "}IMS/ROL 웹플레이어 v1.37
       </div>
 
       {/* 메인 그리드 */}
@@ -1153,6 +1153,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 min={0}
                 max={127}
                 onChange={setVolume}
+                showReset={true}
+                onReset={() => setVolume(100)}
               />
               <DosSlider
                 label="템포"
@@ -1161,6 +1163,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 max={400}
                 onChange={setTempo}
                 unit="%"
+                showReset={true}
+                onReset={() => setTempo(100)}
               />
               <DosSlider
                 label="마스터 볼륨"
@@ -1169,9 +1173,14 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 max={100}
                 onChange={(vol) => {
                   setMasterVolumeState(vol);
-                  setMasterVolume(vol);
+                  setMasterVolume(vol / 100);
                 }}
                 unit="%"
+                showReset={true}
+                onReset={() => {
+                  setMasterVolumeState(50);
+                  setMasterVolume(0.5);
+                }}
               />
             </div>
           </DosPanel>
