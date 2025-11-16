@@ -15,7 +15,12 @@ interface UseROLPlayerOptions {
   rolFile: File | null;
   bnkFile: File | null;
   fileLoadKey?: number;
-  silentAudioRef?: RefObject<HTMLAudioElement | null>;
+  // ═══════════════════════════════════════════════════════════════
+  // [MEDIA SESSION API - 비활성화됨]
+  // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+  // ═══════════════════════════════════════════════════════════════
+  // silentAudioRef?: RefObject<HTMLAudioElement | null>;
+  // ═══════════════════════════════════════════════════════════════
 }
 
 interface UseROLPlayerReturn {
@@ -50,7 +55,12 @@ export function useROLPlayer({
   rolFile,
   bnkFile,
   fileLoadKey,
-  silentAudioRef,
+  // ═══════════════════════════════════════════════════════════════
+  // [MEDIA SESSION API - 비활성화됨]
+  // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+  // ═══════════════════════════════════════════════════════════════
+  // silentAudioRef,
+  // ═══════════════════════════════════════════════════════════════
 }: UseROLPlayerOptions): UseROLPlayerReturn {
   const [state, setState] = useState<PlaybackState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -300,14 +310,19 @@ export function useROLPlayer({
 
         // 이전에 재생 중이었다면 자동 재개
         if (wasPlayingBeforeBackgroundRef.current && !player.getState().isPlaying) {
-          // 무음 오디오 재시작 (Media Session 활성화)
-          if (silentAudioRef?.current && silentAudioRef.current.paused) {
-            try {
-              await silentAudioRef.current.play();
-            } catch (error) {
-              console.warn('[useROLPlayer] 포그라운드 복귀 시 무음 오디오 재생 실패:', error);
-            }
-          }
+          // ═══════════════════════════════════════════════════════════════
+          // [MEDIA SESSION API - 비활성화됨]
+          // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+          // ═══════════════════════════════════════════════════════════════
+          // // 무음 오디오 재시작 (Media Session 활성화)
+          // if (silentAudioRef?.current && silentAudioRef.current.paused) {
+          //   try {
+          //     await silentAudioRef.current.play();
+          //   } catch (error) {
+          //     console.warn('[useROLPlayer] 포그라운드 복귀 시 무음 오디오 재생 실패:', error);
+          //   }
+          // }
+          // ═══════════════════════════════════════════════════════════════
 
           // 플레이어 재생 재개
           player.play();
@@ -383,14 +398,19 @@ export function useROLPlayer({
       }
     }
 
-    // Media Session 활성화를 위한 무음 오디오 시작
-    if (silentAudioRef?.current) {
-      try {
-        await silentAudioRef.current.play();
-      } catch (error) {
-        console.warn('[useROLPlayer.play] 무음 오디오 재생 실패:', error);
-      }
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // // Media Session 활성화를 위한 무음 오디오 시작
+    // if (silentAudioRef?.current) {
+    //   try {
+    //     await silentAudioRef.current.play();
+    //   } catch (error) {
+    //     console.warn('[useROLPlayer.play] 무음 오디오 재생 실패:', error);
+    //   }
+    // }
+    // ═══════════════════════════════════════════════════════════════
 
     playerRef.current.play();
 
@@ -410,7 +430,14 @@ export function useROLPlayer({
       ...playerRef.current.getState(),
       fileName: fileNameRef.current,
     });
-  }, [silentAudioRef]);
+  }, [
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // silentAudioRef
+    // ═══════════════════════════════════════════════════════════════
+  ]);
 
   /**
    * 일시정지
@@ -420,16 +447,21 @@ export function useROLPlayer({
 
     playerRef.current.pause();
 
-    // 무음 오디오도 일시정지
-    if (silentAudioRef?.current && !silentAudioRef.current.paused) {
-      silentAudioRef.current.pause();
-
-      // Safari 워크어라운드: pause 후 reload로 play 버튼 수정
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      if (isSafari) {
-        silentAudioRef.current.load();
-      }
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // // 무음 오디오도 일시정지
+    // if (silentAudioRef?.current && !silentAudioRef.current.paused) {
+    //   silentAudioRef.current.pause();
+    //
+    //   // Safari 워크어라운드: pause 후 reload로 play 버튼 수정
+    //   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    //   if (isSafari) {
+    //     silentAudioRef.current.load();
+    //   }
+    // }
+    // ═══════════════════════════════════════════════════════════════
 
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
@@ -440,7 +472,14 @@ export function useROLPlayer({
       ...playerRef.current.getState(),
       fileName: fileNameRef.current,
     });
-  }, [silentAudioRef]);
+  }, [
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // silentAudioRef
+    // ═══════════════════════════════════════════════════════════════
+  ]);
 
   /**
    * 정지
@@ -451,11 +490,16 @@ export function useROLPlayer({
     playerRef.current.stop();
     lenGenRef.current = 0;
 
-    // 무음 오디오 정지 및 리셋
-    if (silentAudioRef?.current) {
-      silentAudioRef.current.pause();
-      silentAudioRef.current.currentTime = 0;
-    }
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // // 무음 오디오 정지 및 리셋
+    // if (silentAudioRef?.current) {
+    //   silentAudioRef.current.pause();
+    //   silentAudioRef.current.currentTime = 0;
+    // }
+    // ═══════════════════════════════════════════════════════════════
 
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
@@ -466,7 +510,14 @@ export function useROLPlayer({
       ...playerRef.current.getState(),
       fileName: fileNameRef.current,
     });
-  }, [silentAudioRef]);
+  }, [
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // silentAudioRef
+    // ═══════════════════════════════════════════════════════════════
+  ]);
 
   /**
    * 볼륨 설정 (0-127)

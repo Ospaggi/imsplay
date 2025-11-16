@@ -9,7 +9,12 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useFetcher } from "react-router";
 import { useROLPlayer } from "~/lib/hooks/useROLPlayer";
 import { useIMSPlayer } from "~/lib/hooks/useIMSPlayer";
-import { generateSilentAudioDataURL } from "~/lib/utils/silent-audio";
+// ═══════════════════════════════════════════════════════════════
+// [MEDIA SESSION API - 비활성화됨]
+// 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+// ═══════════════════════════════════════════════════════════════
+// import { generateSilentAudioDataURL } from "~/lib/utils/silent-audio";
+// ═══════════════════════════════════════════════════════════════
 import ChannelVisualizer from "./ChannelVisualizer";
 import DosPanel from "~/components/dos-ui/DosPanel";
 import DosButton from "~/components/dos-ui/DosButton";
@@ -172,9 +177,14 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   // 드래그 앤 드롭 상태
   const [isDragging, setIsDragging] = useState(false);
 
-  // Media Session용 무음 오디오
-  const silentAudioRef = useRef<HTMLAudioElement>(null);
-  const [silentAudioURL, setSilentAudioURL] = useState<string>("");
+  // ═══════════════════════════════════════════════════════════════
+  // [MEDIA SESSION API - 비활성화됨]
+  // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+  // ═══════════════════════════════════════════════════════════════
+  // // Media Session용 무음 오디오
+  // const silentAudioRef = useRef<HTMLAudioElement>(null);
+  // const [silentAudioURL, setSilentAudioURL] = useState<string>("");
+  // ═══════════════════════════════════════════════════════════════
 
   // 로딩 표시 (파일 처리 중이거나 fetcher 실행 중)
   const isLoadingFolder = isProcessingFiles || fetcher.state === 'submitting' || fetcher.state === 'loading';
@@ -193,7 +203,12 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     rolFile: format === "ROL" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
     fileLoadKey,
-    silentAudioRef,
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // silentAudioRef,
+    // ═══════════════════════════════════════════════════════════════
   });
 
   // IMS 플레이어
@@ -201,7 +216,12 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     imsFile: format === "IMS" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
     fileLoadKey,
-    silentAudioRef,
+    // ═══════════════════════════════════════════════════════════════
+    // [MEDIA SESSION API - 비활성화됨]
+    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+    // ═══════════════════════════════════════════════════════════════
+    // silentAudioRef,
+    // ═══════════════════════════════════════════════════════════════
   });
 
   // 현재 활성 플레이어 선택
@@ -629,76 +649,81 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     }
   }, [state?.isPlaying, state?.currentByte, state?.totalSize, state?.fileName, repeatMode, currentMusicFile, isLoadingTrack, currentTrackIndex, playNextTrack]);
 
-  /**
-   * Media Session API 통합 (블루투스 이어폰, 잠금 화면 제어 지원)
-   */
-  useEffect(() => {
-    if (!("mediaSession" in navigator)) {
-      return;
-    }
-
-    // 재생 상태 먼저 설정 (핸들러보다 먼저)
-    if (state?.isPlaying) {
-      navigator.mediaSession.playbackState = "playing";
-    } else if (state?.isPaused) {
-      navigator.mediaSession.playbackState = "paused";
-    } else {
-      navigator.mediaSession.playbackState = "none";
-    }
-
-    // 메타데이터 업데이트
-    if (currentMusicFile) {
-      const title = isUserFolder
-        ? userMusicFileTitles.get(currentMusicFile.name) || currentMusicFile.name.replace(/\.(ims|rol)$/i, '')
-        : musicSamples[currentTrackIndex]?.title || currentMusicFile.name.replace(/\.(ims|rol)$/i, '');
-
-      const artist = format === "IMS" ? "IMS Music" : "AdLib ROL Music";
-      const album = isUserFolder ? userFolderName : "샘플 음악";
-
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: title,
-        artist: artist,
-        album: album,
-      });
-    }
-
-    // 액션 핸들러 설정
-    navigator.mediaSession.setActionHandler("play", () => {
-      console.log('[Media Session] Play');
-      if (play) play();
-    });
-
-    navigator.mediaSession.setActionHandler("pause", () => {
-      console.log('[Media Session] Pause');
-      if (pause) pause();
-    });
-
-    navigator.mediaSession.setActionHandler("previoustrack", () => {
-      console.log('[Media Session] Previous Track');
-      playPreviousTrack();
-    });
-
-    navigator.mediaSession.setActionHandler("nexttrack", () => {
-      console.log('[Media Session] Next Track');
-      playNextTrack();
-    });
-
-    navigator.mediaSession.setActionHandler("stop", () => {
-      console.log('[Media Session] Stop');
-      if (stop) stop();
-    });
-
-    return () => {
-      // cleanup: 핸들러 제거
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.setActionHandler("play", null);
-        navigator.mediaSession.setActionHandler("pause", null);
-        navigator.mediaSession.setActionHandler("previoustrack", null);
-        navigator.mediaSession.setActionHandler("nexttrack", null);
-        navigator.mediaSession.setActionHandler("stop", null);
-      }
-    };
-  }, [state?.isPlaying, state?.isPaused, currentMusicFile, play, pause, stop, playPreviousTrack, playNextTrack, isUserFolder, userMusicFileTitles, musicSamples, currentTrackIndex, format, userFolderName]);
+  // ═══════════════════════════════════════════════════════════════
+  // [MEDIA SESSION API - 비활성화됨]
+  // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+  // ═══════════════════════════════════════════════════════════════
+  // /**
+  //  * Media Session API 통합 (블루투스 이어폰, 잠금 화면 제어 지원)
+  //  */
+  // useEffect(() => {
+  //   if (!("mediaSession" in navigator)) {
+  //     return;
+  //   }
+  //
+  //   // 재생 상태 먼저 설정 (핸들러보다 먼저)
+  //   if (state?.isPlaying) {
+  //     navigator.mediaSession.playbackState = "playing";
+  //   } else if (state?.isPaused) {
+  //     navigator.mediaSession.playbackState = "paused";
+  //   } else {
+  //     navigator.mediaSession.playbackState = "none";
+  //   }
+  //
+  //   // 메타데이터 업데이트
+  //   if (currentMusicFile) {
+  //     const title = isUserFolder
+  //       ? userMusicFileTitles.get(currentMusicFile.name) || currentMusicFile.name.replace(/\.(ims|rol)$/i, '')
+  //       : musicSamples[currentTrackIndex]?.title || currentMusicFile.name.replace(/\.(ims|rol)$/i, '');
+  //
+  //     const artist = format === "IMS" ? "IMS Music" : "AdLib ROL Music";
+  //     const album = isUserFolder ? userFolderName : "샘플 음악";
+  //
+  //     navigator.mediaSession.metadata = new MediaMetadata({
+  //       title: title,
+  //       artist: artist,
+  //       album: album,
+  //     });
+  //   }
+  //
+  //   // 액션 핸들러 설정
+  //   navigator.mediaSession.setActionHandler("play", () => {
+  //     console.log('[Media Session] Play');
+  //     if (play) play();
+  //   });
+  //
+  //   navigator.mediaSession.setActionHandler("pause", () => {
+  //     console.log('[Media Session] Pause');
+  //     if (pause) pause();
+  //   });
+  //
+  //   navigator.mediaSession.setActionHandler("previoustrack", () => {
+  //     console.log('[Media Session] Previous Track');
+  //     playPreviousTrack();
+  //   });
+  //
+  //   navigator.mediaSession.setActionHandler("nexttrack", () => {
+  //     console.log('[Media Session] Next Track');
+  //     playNextTrack();
+  //   });
+  //
+  //   navigator.mediaSession.setActionHandler("stop", () => {
+  //     console.log('[Media Session] Stop');
+  //     if (stop) stop();
+  //   });
+  //
+  //   return () => {
+  //     // cleanup: 핸들러 제거
+  //     if ("mediaSession" in navigator) {
+  //       navigator.mediaSession.setActionHandler("play", null);
+  //       navigator.mediaSession.setActionHandler("pause", null);
+  //       navigator.mediaSession.setActionHandler("previoustrack", null);
+  //       navigator.mediaSession.setActionHandler("nexttrack", null);
+  //       navigator.mediaSession.setActionHandler("stop", null);
+  //     }
+  //   };
+  // }, [state?.isPlaying, state?.isPaused, currentMusicFile, play, pause, stop, playPreviousTrack, playNextTrack, isUserFolder, userMusicFileTitles, musicSamples, currentTrackIndex, format, userFolderName]);
+  // ═══════════════════════════════════════════════════════════════
 
   // progress bar
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
@@ -797,19 +822,24 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     }
   }, [isUserFolder, userMusicFiles, userMusicFileTitles, musicSamples, playingTrackIndex, currentMusicFile]);
 
-  /**
-   * Media Session용 무음 오디오 초기화
-   */
-  useEffect(() => {
-    // 10초 무음 오디오 생성 (loop로 계속 재생)
-    const url = generateSilentAudioDataURL(10);
-    setSilentAudioURL(url);
-
-    return () => {
-      // cleanup: data URL은 메모리에만 있으므로 별도 revoke 불필요
-      setSilentAudioURL("");
-    };
-  }, []);
+  // ═══════════════════════════════════════════════════════════════
+  // [MEDIA SESSION API - 비활성화됨]
+  // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+  // ═══════════════════════════════════════════════════════════════
+  // /**
+  //  * Media Session용 무음 오디오 초기화
+  //  */
+  // useEffect(() => {
+  //   // 10초 무음 오디오 생성 (loop로 계속 재생)
+  //   const url = generateSilentAudioDataURL(10);
+  //   setSilentAudioURL(url);
+  //
+  //   return () => {
+  //     // cleanup: data URL은 메모리에만 있으므로 별도 revoke 불필요
+  //     setSilentAudioURL("");
+  //   };
+  // }, []);
+  // ═══════════════════════════════════════════════════════════════
 
   return (
     <div className="dos-container">
@@ -918,7 +948,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.37
+        {" "}IMS/ROL 웹플레이어 v1.38
       </div>
 
       {/* 메인 그리드 */}
@@ -1252,7 +1282,11 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         </div>
       </div>
 
-      {/* Media Session용 무음 오디오 엘리먼트 */}
+      {/* ═══════════════════════════════════════════════════════════════
+      [MEDIA SESSION API - 비활성화됨]
+      나중에 재활성화하려면 이 섹션의 주석을 제거하세요
+      ═══════════════════════════════════════════════════════════════
+      {/* Media Session용 무음 오디오 엘리먼트 *}
       {silentAudioURL && (
         <audio
           ref={silentAudioRef}
@@ -1262,6 +1296,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
           preload="auto"
         />
       )}
+      ═══════════════════════════════════════════════════════════════ */}
     </div>
   );
 }
