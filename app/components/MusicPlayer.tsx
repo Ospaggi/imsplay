@@ -239,6 +239,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   // 트랙 종료 콜백 ref (정의 순서 문제 해결)
   const playNextTrackRef = useRef<(() => void) | null>(null);
 
+  // 강제 재로드 플래그 (트랙 재생 버튼 클릭 시 AudioContext 완전 재생성)
+  const forceReloadRef = useRef<boolean>(false);
+
   // ═══════════════════════════════════════════════════════════════
   // [MEDIA SESSION API - 비활성화됨]
   // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
@@ -270,6 +273,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     rolFile: format === "ROL" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
     fileLoadKey,
+    forceReloadRef,
     onTrackEnd: handleTrackEnd,
     // ═══════════════════════════════════════════════════════════════
     // [MEDIA SESSION API - 비활성화됨]
@@ -284,6 +288,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     imsFile: format === "IMS" ? currentMusicFile : null,
     bnkFile: currentBnkFile,
     fileLoadKey,
+    forceReloadRef,
     onTrackEnd: handleTrackEnd,
     // ═══════════════════════════════════════════════════════════════
     // [MEDIA SESSION API - 비활성화됨]
@@ -869,6 +874,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
               </div>
               <DosButton
                 onClick={() => {
+                  forceReloadRef.current = true;
                   loadTrack(index, undefined, undefined, undefined, true);
                 }}
                 disabled={isLoadingTrack}
@@ -901,6 +907,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
             </div>
             <DosButton
               onClick={() => {
+                forceReloadRef.current = true;
                 loadTrack(index, undefined, undefined, undefined, true);
               }}
               disabled={isLoadingTrack}

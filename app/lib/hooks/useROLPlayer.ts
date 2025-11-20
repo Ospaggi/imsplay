@@ -15,6 +15,7 @@ interface UseROLPlayerOptions {
   rolFile: File | null;
   bnkFile: File | null;
   fileLoadKey?: number;
+  forceReloadRef?: RefObject<boolean>;
   onTrackEnd?: () => void;
   // ═══════════════════════════════════════════════════════════════
   // [MEDIA SESSION API - 비활성화됨]
@@ -56,6 +57,7 @@ export function useROLPlayer({
   rolFile,
   bnkFile,
   fileLoadKey,
+  forceReloadRef,
   onTrackEnd,
   // ═══════════════════════════════════════════════════════════════
   // [MEDIA SESSION API - 비활성화됨]
@@ -127,6 +129,17 @@ export function useROLPlayer({
 
         // OPL 엔진 생성
         const oplEngine = new OPLEngine();
+
+        // 강제 재로드 처리 (트랙 재생 버튼 클릭 시)
+        if (forceReloadRef?.current) {
+          forceReloadRef.current = false;
+
+          // 기존 AudioContext 강제 종료
+          if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            await audioContextRef.current.close();
+          }
+          audioContextRef.current = null;
+        }
 
         // Web Audio API 초기화 (기존 AudioContext 재사용 - Safari autoplay 정책)
         let audioContext = audioContextRef.current;
