@@ -23,10 +23,10 @@ import DosSlider from "~/components/dos-ui/DosSlider";
 import PianoRoll from "./PianoRoll";
 import LyricsDisplay from "./LyricsDisplay";
 import type { ISSData } from "~/routes/api/parse-iss";
-import { X, Repeat1, Repeat, Play, Pause, Square, SkipBack, SkipForward } from "lucide-react";
+import { X, Repeat1, Repeat, Play, Pause, Square, SkipBack, SkipForward, Shuffle } from "lucide-react";
 
 type MusicFormat = "ROL" | "IMS" | null;
-type RepeatMode = 'none' | 'all' | 'one';
+type RepeatMode = 'none' | 'all' | 'one' | 'shuffle';
 
 // 샘플 음악 목록
 export interface MusicSample {
@@ -728,6 +728,17 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     if (repeatMode === 'all') {
       const prevIndex = playingTrackIndex === 0 ? musicList.length - 1 : playingTrackIndex - 1;
       loadTrack(prevIndex, undefined, undefined, undefined, true);
+    } else if (repeatMode === 'shuffle') {
+      // 현재 곡을 제외한 랜덤 선택
+      let randomIndex;
+      if (musicList.length > 1) {
+        do {
+          randomIndex = Math.floor(Math.random() * musicList.length);
+        } while (randomIndex === playingTrackIndex);
+      } else {
+        randomIndex = 0;
+      }
+      loadTrack(randomIndex, undefined, undefined, undefined, true);
     } else if (repeatMode === 'none') {
       if (playingTrackIndex > 0) {
         const prevIndex = playingTrackIndex - 1;
@@ -743,6 +754,17 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     if (repeatMode === 'all') {
       const nextIndex = (playingTrackIndex + 1) % musicList.length;
       loadTrack(nextIndex, undefined, undefined, undefined, true);
+    } else if (repeatMode === 'shuffle') {
+      // 현재 곡을 제외한 랜덤 선택
+      let randomIndex;
+      if (musicList.length > 1) {
+        do {
+          randomIndex = Math.floor(Math.random() * musicList.length);
+        } while (randomIndex === playingTrackIndex);
+      } else {
+        randomIndex = 0;
+      }
+      loadTrack(randomIndex, undefined, undefined, undefined, true);
     } else if (repeatMode === 'none') {
       if (playingTrackIndex < musicList.length - 1) {
         const nextIndex = playingTrackIndex + 1;
@@ -1276,6 +1298,27 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                   }}
                 >
                   <Repeat1 size={12} />
+                </DosButton>
+                <DosButton
+                  onClick={() => setRepeatMode('shuffle')}
+                  active={repeatMode === 'shuffle'}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    padding: '2px',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderTop: repeatMode === 'shuffle' ? '2px solid black' : '2px solid white',
+                    borderLeft: repeatMode === 'shuffle' ? '2px solid black' : '2px solid white',
+                    borderBottom: repeatMode === 'shuffle' ? '2px solid white' : '2px solid black',
+                    borderRight: repeatMode === 'shuffle' ? '2px solid white' : '2px solid black',
+                    backgroundColor: repeatMode === 'shuffle' ? '#00FF00' : '#C0C0C0',
+                    color: 'black'
+                  }}
+                >
+                  <Shuffle size={12} />
                 </DosButton>
               </div>
             </div>

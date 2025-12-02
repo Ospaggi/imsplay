@@ -178,14 +178,14 @@ export function useIMSPlayer({
         // 초기 상태 설정
         fileNameRef.current = imsFile.name; // fileNameRef 업데이트
 
-        // 플레이어 준비 완료를 먼저 설정 (playerRef가 설정된 직후)
-        setIsPlayerReady(true);
-
+        // setState를 먼저 호출하여 state.fileName이 업데이트된 후 isPlayerReady가 true가 되도록 함
+        // (ROL→IMS 전환 시 autoPlay race condition 방지)
         setState({
           ...player.getState(),
           fileName: imsFile.name,
           channelMuted: channelMuted.slice(0, imsData.chNum),
         });
+        setIsPlayerReady(true);
         setIsLoading(false);
       } catch (err) {
         if (!cancelled) {
