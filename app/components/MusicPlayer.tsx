@@ -37,23 +37,6 @@ export interface MusicSample {
 }
 
 export const MUSIC_SAMPLES: MusicSample[] = [
-  // VGM 샘플 (프린세스 메이커 2 - 원본 VGM)
-  { musicFile: "/01 Horst-Wessel-Lied.vgm", format: "VGM" },
-  { musicFile: "/Wolf.vgm", format: "VGM" },
-  { musicFile: "/01 Profile determination.vgm", format: "VGM" },
-  { musicFile: "/03 Opening 2.vgm", format: "VGM" },
-  { musicFile: "/04 Main screen (Spring).vgm", format: "VGM" },
-  { musicFile: "/05 Main screen (Summer).vgm", format: "VGM" },
-  { musicFile: "/06 Main screen (Autumn).vgm", format: "VGM" },
-  { musicFile: "/07 Main screen (Winter).vgm", format: "VGM" },
-  { musicFile: "/10 To the city.vgm", format: "VGM" },
-  { musicFile: "/12 Part-time job.vgm", format: "VGM" },
-  { musicFile: "/13 Training.vgm", format: "VGM" },
-  { musicFile: "/16 People encounter.vgm", format: "VGM" },
-  { musicFile: "/20 Rest.vgm", format: "VGM" },
-  { musicFile: "/30 Ending.vgm", format: "VGM" },
-  { musicFile: "/31 Credits.vgm", format: "VGM" },
-
   // IMS 샘플
   { musicFile: "/JAM-FIVE.IMS", format: "IMS" },
   { musicFile: "/JAM-NADI.IMS", format: "IMS" },
@@ -114,6 +97,36 @@ export const MUSIC_SAMPLES: MusicSample[] = [
   { musicFile: "/FF5-LOGO.ROL", format: "ROL" },
   { musicFile: "/NAUCIKA2.ROL", format: "ROL" },
   { musicFile: "/SIDE-END.ROL", format: "ROL" },
+
+  // VGM 샘플
+  { musicFile: "/01 Horst-Wessel-Lied.vgm", format: "VGM" },
+  { musicFile: "/Wolf.vgm", format: "VGM" },
+  { musicFile: "/01 Profile determination.vgm", format: "VGM" },
+  { musicFile: "/03 Opening 2.vgm", format: "VGM" },
+  { musicFile: "/04 Main screen (Spring).vgm", format: "VGM" },
+  { musicFile: "/05 Main screen (Summer).vgm", format: "VGM" },
+  { musicFile: "/06 Main screen (Autumn).vgm", format: "VGM" },
+  { musicFile: "/07 Main screen (Winter).vgm", format: "VGM" },
+  { musicFile: "/10 To the city.vgm", format: "VGM" },
+  { musicFile: "/12 Part-time job.vgm", format: "VGM" },
+  { musicFile: "/13 Training.vgm", format: "VGM" },
+  { musicFile: "/16 People encounter.vgm", format: "VGM" },
+  { musicFile: "/20 Rest.vgm", format: "VGM" },
+  { musicFile: "/30 Ending.vgm", format: "VGM" },
+  { musicFile: "/31 Credits.vgm", format: "VGM" },
+  { musicFile: "/01 Main BGM.vgm", format: "VGM" },
+  { musicFile: "/01 Main Theme.vgm", format: "VGM" },
+  { musicFile: "/01 Peter Gunn Theme.vgm", format: "VGM" },
+  { musicFile: "/01 Shadows Don't Scare Commander Keen!!.vgm", format: "VGM" },
+  { musicFile: "/01 Simpsons Theme Song.vgm", format: "VGM" },
+  { musicFile: "/01 Title Screen.vgm", format: "VGM" },
+  { musicFile: "/02 Main Theme.vgm", format: "VGM" },
+  { musicFile: "/03 Buy, Sell Music.vgm", format: "VGM" },
+  { musicFile: "/03 In-game music #1.vgm", format: "VGM" },
+  { musicFile: "/04 Town.vgm", format: "VGM" },
+  { musicFile: "/04 Tropical Ghost Oasis.vgm", format: "VGM" },
+  { musicFile: "/05 Welcome to a Kick In Yore Pants In Good Ole Hillville!.vgm", format: "VGM" },
+  { musicFile: "/18 Tyrian, The Level.vgm", format: "VGM" },
 ];
 
 const BNK_FILE = "/STANDARD.BNK";
@@ -929,12 +942,12 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         return {
           key: `${index}-${file.name}`,
           content: (
-            <div className="flex space-between align-center w-full">
-              <div className="flex gap-8 align-center">
-                <span className={`dos-badge ${format === 'ROL' ? 'dos-badge-rol' : format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`}>
+            <div className="flex space-between align-center w-full" style={{ overflow: 'hidden' }}>
+              <div className="flex gap-8 align-center" style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
+                <span className={`dos-badge ${format === 'ROL' ? 'dos-badge-rol' : format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`} style={{ flexShrink: 0 }}>
                   {format}
                 </span>
-                <span className="sample-title">{title}</span>
+                <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
               </div>
               <DosButton
                 onClick={() => {
@@ -962,12 +975,12 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       return musicSamples.map((sample, index) => ({
         key: sample.musicFile,
         content: (
-          <div className="flex space-between align-center w-full">
-            <div className="flex gap-8 align-center">
-              <span className={`dos-badge ${sample.format === 'ROL' ? 'dos-badge-rol' : sample.format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`}>
+          <div className="flex space-between align-center w-full" style={{ overflow: 'hidden' }}>
+            <div className="flex gap-8 align-center" style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
+              <span className={`dos-badge ${sample.format === 'ROL' ? 'dos-badge-rol' : sample.format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`} style={{ flexShrink: 0 }}>
                 {sample.format}
               </span>
-              <span className="sample-title">{sample.title || sample.musicFile.slice(1)}</span>
+              <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sample.title || sample.musicFile.slice(1)}</span>
             </div>
             <DosButton
               onClick={() => {
@@ -1471,7 +1484,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         <div className="dos-status-item">
           {state ? (
             state.isPlaying
-              ? `재생중 - ${currentTrackTitle} (${currentMusicFile?.name || '?'}${currentBnkFile?.name ? ', ' + currentBnkFile.name : ''})`
+              ? format === "VGM"
+                ? `재생중 - ${currentMusicFile?.name || '?'}`
+                : `재생중 - ${currentTrackTitle} (${currentMusicFile?.name || '?'}${currentBnkFile?.name ? ', ' + currentBnkFile.name : ''})`
               : state.isPaused
                 ? "일시정지"
                 : "정지"
