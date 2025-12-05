@@ -87,8 +87,6 @@ export const MUSIC_SAMPLES: MusicSample[] = [
   { musicFile: "/GRAD2-4.IMS", format: "IMS" },
   { musicFile: "/GRAD3-1.IMS", format: "IMS" },
   { musicFile: "/GRAD3-2.IMS", format: "IMS" },
-  { musicFile: "/TWINBEE1.IMS", format: "IMS" },
-  { musicFile: "/TWINBEE2.IMS", format: "IMS" },
 
   // ROL 샘플
   { musicFile: "/VV.ROL", format: "ROL" },
