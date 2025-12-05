@@ -8,7 +8,8 @@
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "react-router typegen && tsc",
-    "analyze": "tsx scripts/analyze-music-files.ts"
+    "analyze": "tsx scripts/analyze-music-files.ts",
+    "vgm-to-ims": "tsx tools/vgm-to-ims/index.ts"
   },
   "dependencies": {
     "@malvineous/opl": "^1.0.0",
