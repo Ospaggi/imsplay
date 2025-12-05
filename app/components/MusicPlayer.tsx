@@ -122,7 +122,7 @@ export const MUSIC_SAMPLES: MusicSample[] = [
   { musicFile: "/01 Title Screen.vgm", format: "VGM" },
   { musicFile: "/02 Main Theme.vgm", format: "VGM" },
   { musicFile: "/03 Buy, Sell Music.vgm", format: "VGM" },
-  { musicFile: "/03 In-game music #1.vgm", format: "VGM" },
+  { musicFile: "/03 In-game music.vgm", format: "VGM" },
   { musicFile: "/04 Town.vgm", format: "VGM" },
   { musicFile: "/04 Tropical Ghost Oasis.vgm", format: "VGM" },
   { musicFile: "/05 Welcome to a Kick In Yore Pants In Good Ole Hillville!.vgm", format: "VGM" },
