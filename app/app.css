@@ -312,7 +312,16 @@ body {
   color: var(--color-white);
 }
 
+.dos-badge-vgm {
+  background: var(--color-purple);
+  color: var(--color-white);
+}
+
 /* Slider */
+.dos-slider-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
 .dos-slider-container {
   display: flex;
   align-items: center;

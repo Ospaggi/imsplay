@@ -287,6 +287,15 @@ export class OPLEngine {
     return result;
   }
 
+  /**
+   * Direct register write for VGM playback
+   * This bypasses the high-level API and writes directly to OPL registers
+   */
+  writeRegister(register: number, value: number): void {
+    if (!this.opl) return;
+    this.opl.write(register, value);
+  }
+
   // ==================== Private Helper Functions ====================
 
   /**

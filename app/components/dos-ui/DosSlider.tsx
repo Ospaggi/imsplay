@@ -11,6 +11,7 @@ interface DosSliderProps {
   unit?: string;
   onReset?: () => void;
   showReset?: boolean;
+  disabled?: boolean;
 }
 
 export default function DosSlider({
@@ -22,15 +23,17 @@ export default function DosSlider({
   unit = "",
   onReset,
   showReset = false,
+  disabled = false,
 }: DosSliderProps) {
   return (
-    <div className="dos-slider-container">
+    <div className={`dos-slider-container ${disabled ? 'dos-slider-disabled' : ''}`}>
       {showReset && onReset && (
         <button
           onClick={onReset}
           className="dos-reset-button"
           style={{ width: '16px', height: '16px' }}
           title="초기값으로 복원"
+          disabled={disabled}
         >
           ↻
         </button>
@@ -44,6 +47,7 @@ export default function DosSlider({
           max={max}
           value={value}
           onChange={(e) => onChange(parseInt(e.target.value))}
+          disabled={disabled}
         />
       </div>
       <div className="dos-slider-value">

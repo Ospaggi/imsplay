@@ -9,6 +9,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useFetcher } from "react-router";
 import { useROLPlayer } from "~/lib/hooks/useROLPlayer";
 import { useIMSPlayer } from "~/lib/hooks/useIMSPlayer";
+import { useVGMPlayer } from "~/lib/hooks/useVGMPlayer";
 // ═══════════════════════════════════════════════════════════════
 // [MEDIA SESSION API - 비활성화됨]
 // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
@@ -25,17 +26,33 @@ import LyricsDisplay from "./LyricsDisplay";
 import type { ISSData } from "~/routes/api/parse-iss";
 import { X, Repeat1, Repeat, Play, Pause, Square, SkipBack, SkipForward, Shuffle } from "lucide-react";
 
-type MusicFormat = "ROL" | "IMS" | null;
+type MusicFormat = "ROL" | "IMS" | "VGM" | null;
 type RepeatMode = 'none' | 'all' | 'one' | 'shuffle';
 
 // 샘플 음악 목록
 export interface MusicSample {
   musicFile: string;
-  format: "ROL" | "IMS";
+  format: "ROL" | "IMS" | "VGM";
   title?: string;
 }
 
 export const MUSIC_SAMPLES: MusicSample[] = [
+  // VGM 샘플 (프린세스 메이커 2 - 원본 VGM)
+  { musicFile: "/01 Horst-Wessel-Lied.vgm", format: "VGM", title: "Horst-Wessel-Lied" },
+  { musicFile: "/01 Profile determination.vgm", format: "VGM", title: "Profile determination" },
+  { musicFile: "/03 Opening 2.vgm", format: "VGM", title: "Opening 2" },
+  { musicFile: "/04 Main screen (Spring).vgm", format: "VGM", title: "Main screen (Spring)" },
+  { musicFile: "/05 Main screen (Summer).vgm", format: "VGM", title: "Main screen (Summer)" },
+  { musicFile: "/06 Main screen (Autumn).vgm", format: "VGM", title: "Main screen (Autumn)" },
+  { musicFile: "/07 Main screen (Winter).vgm", format: "VGM", title: "Main screen (Winter)" },
+  { musicFile: "/10 To the city.vgm", format: "VGM", title: "To the city" },
+  { musicFile: "/12 Part-time job.vgm", format: "VGM", title: "Part-time job" },
+  { musicFile: "/13 Training.vgm", format: "VGM", title: "Training" },
+  { musicFile: "/16 People encounter.vgm", format: "VGM", title: "People encounter" },
+  { musicFile: "/20 Rest.vgm", format: "VGM", title: "Rest" },
+  { musicFile: "/30 Ending.vgm", format: "VGM", title: "Ending" },
+  { musicFile: "/31 Credits.vgm", format: "VGM", title: "Credits" },
+
   // IMS 샘플
   { musicFile: "/JAM-FIVE.IMS", format: "IMS" },
   { musicFile: "/JAM-NADI.IMS", format: "IMS" },
@@ -263,6 +280,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     const ext = currentMusicFile.name.toLowerCase().split(".").pop();
     if (ext === "rol") return "ROL";
     if (ext === "ims") return "IMS";
+    if (ext === "vgm" || ext === "vgz") return "VGM";
     return null;
   }, [currentMusicFile]);
 
@@ -303,19 +321,35 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     // ═══════════════════════════════════════════════════════════════
   });
 
+  // VGM 플레이어
+  const vgmPlayer = useVGMPlayer({
+    vgmFile: format === "VGM" ? currentMusicFile : null,
+    fileLoadKey,
+    forceReloadRef,
+    onTrackEnd: handleTrackEnd,
+    sharedAudioContextRef,
+  });
+
   // 현재 활성 플레이어 선택
-  const player = format === "ROL" ? rolPlayer : imsPlayer;
+  const player = format === "ROL" ? rolPlayer : format === "VGM" ? vgmPlayer : imsPlayer;
   const { state, error, isPlayerReady, play, pause, stop, setVolume, setTempo, setMasterVolume, checkPlayerReady } = player;
 
-  // Format-aware ready state (IMS↔ROL 전환 시 auto-play가 올바르게 작동하도록)
+  // Format-aware ready state (IMS↔ROL↔VGM 전환 시 auto-play가 올바르게 작동하도록)
   const isCurrentPlayerReady = useMemo(() => {
     if (!format || !currentMusicFile) return false;
 
-    const expectedFormat = currentMusicFile.name.toLowerCase().endsWith('.rol') ? 'ROL' : 'IMS';
+    const ext = currentMusicFile.name.toLowerCase().split('.').pop();
+    let expectedFormat: MusicFormat = null;
+    if (ext === 'rol') expectedFormat = 'ROL';
+    else if (ext === 'ims') expectedFormat = 'IMS';
+    else if (ext === 'vgm' || ext === 'vgz') expectedFormat = 'VGM';
+
     if (format !== expectedFormat) return false;
 
-    return format === 'ROL' ? rolPlayer.isPlayerReady : imsPlayer.isPlayerReady;
-  }, [format, currentMusicFile, rolPlayer.isPlayerReady, imsPlayer.isPlayerReady]);
+    if (format === 'ROL') return rolPlayer.isPlayerReady;
+    if (format === 'VGM') return vgmPlayer.isPlayerReady;
+    return imsPlayer.isPlayerReady;
+  }, [format, currentMusicFile, rolPlayer.isPlayerReady, imsPlayer.isPlayerReady, vgmPlayer.isPlayerReady]);
 
   // 음악 리스트 결정 (사용자 폴더 or 샘플)
   const isUserFolder = userFolderName && userMusicFiles.length > 0;
@@ -394,7 +428,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
     try {
       // 파일 분류 (대소문자 구별 없이)
-      const musicFiles = files.filter(f => /\.(ims|rol)$/i.test(f.name));
+      const musicFiles = files.filter(f => /\.(ims|rol|vgm|vgz)$/i.test(f.name));
       const bnkFiles = files.filter(f => /\.bnk$/i.test(f.name));
       const issFiles = files.filter(f => /\.iss$/i.test(f.name));
 
@@ -723,6 +757,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       imsPlayer.setLoopEnabled(shouldLoop);
     } else if (format === 'ROL') {
       rolPlayer.setLoopEnabled(shouldLoop);
+    } else if (format === 'VGM') {
+      vgmPlayer.setLoopEnabled(shouldLoop);
     }
   }, [repeatMode, format, currentMusicFile]);
 
@@ -886,15 +922,15 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       // 사용자 폴더 모드
       return userMusicFiles.map((file, index) => {
         const ext = file.name.toLowerCase().split('.').pop();
-        const format = ext === 'rol' ? 'ROL' : 'IMS';
-        const title = userMusicFileTitles.get(file.name) || file.name.replace(/\.(ims|rol)$/i, '');
+        const format = ext === 'rol' ? 'ROL' : (ext === 'vgm' || ext === 'vgz') ? 'VGM' : 'IMS';
+        const title = userMusicFileTitles.get(file.name) || file.name.replace(/\.(ims|rol|vgm|vgz)$/i, '');
 
         return {
           key: `${index}-${file.name}`,
           content: (
             <div className="flex space-between align-center w-full">
               <div className="flex gap-8 align-center">
-                <span className={`dos-badge ${format === 'ROL' ? 'dos-badge-rol' : 'dos-badge-ims'}`}>
+                <span className={`dos-badge ${format === 'ROL' ? 'dos-badge-rol' : format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`}>
                   {format}
                 </span>
                 <span className="sample-title">{title}</span>
@@ -927,7 +963,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         content: (
           <div className="flex space-between align-center w-full">
             <div className="flex gap-8 align-center">
-              <span className={`dos-badge ${sample.format === 'ROL' ? 'dos-badge-rol' : 'dos-badge-ims'}`}>
+              <span className={`dos-badge ${sample.format === 'ROL' ? 'dos-badge-rol' : sample.format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`}>
                 {sample.format}
               </span>
               <span className="sample-title">{sample.title || sample.musicFile.slice(1)}</span>
@@ -1102,7 +1138,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.48
+        {" "}IMS/ROL 웹플레이어 v1.49
       </div>
 
       {/* 메인 그리드 */}
@@ -1360,6 +1396,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 onChange={setVolume}
                 showReset={true}
                 onReset={() => setVolume(100)}
+                disabled={format === "VGM"}
               />
               <DosSlider
                 label="템포"
@@ -1370,6 +1407,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 unit="%"
                 showReset={true}
                 onReset={() => setTempo(100)}
+                disabled={format === "VGM"}
               />
               <DosSlider
                 label="마스터 볼륨"
@@ -1410,7 +1448,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
             channelVolumes={state?.currentVolumes ?? Array(11).fill(0)}
             instrumentNames={state?.instrumentNames}
             channelMuted={state?.channelMuted ?? Array(11).fill(false)}
-            onToggleChannel={format === "IMS" ? imsPlayer.toggleChannel : format === "ROL" ? rolPlayer.toggleChannel : imsPlayer.toggleChannel}
+            onToggleChannel={format === "IMS" ? imsPlayer.toggleChannel : format === "ROL" ? rolPlayer.toggleChannel : format === "VGM" ? vgmPlayer.toggleChannel : imsPlayer.toggleChannel}
           />
 
           {/* 가사 / 크레딧 */}
