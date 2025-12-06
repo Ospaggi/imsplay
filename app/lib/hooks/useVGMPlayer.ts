@@ -251,7 +251,7 @@ export function useVGMPlayer({
 
     // GainNode 생성 (초기값은 setMasterVolume에서 덮어씀)
     const gainNode = audioContext.createGain();
-    gainNode.gain.value = 1.5; // 마스터볼륨 100% 기본값 * 1.5 보정
+    gainNode.gain.value = 1.75; // 마스터볼륨 100% 기본값 * 1.75 보정
     gainNodeRef.current = gainNode;
 
     processor.connect(gainNode);
@@ -475,8 +475,8 @@ export function useVGMPlayer({
    */
   const setMasterVolume = useCallback((volume: number) => {
     if (gainNodeRef.current) {
-      // VGM은 IMS/ROL보다 볼륨이 낮아서 50% 보정
-      gainNodeRef.current.gain.value = (volume / 100) * 1.5;
+      // VGM은 IMS/ROL보다 볼륨이 낮아서 75% 보정
+      gainNodeRef.current.gain.value = (volume / 100) * 1.75;
     }
   }, []);
 
