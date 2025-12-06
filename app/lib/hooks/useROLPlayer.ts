@@ -298,7 +298,7 @@ export function useROLPlayer({
 
     // GainNode 생성 및 연결 (마스터 볼륨용)
     const gainNode = audioContext.createGain();
-    gainNode.gain.value = 1.0; // 기본값 100%
+    gainNode.gain.value = 0.5; // 기본값 50%
     gainNodeRef.current = gainNode;
 
     // processor → gainNode → destination

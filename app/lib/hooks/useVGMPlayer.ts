@@ -251,7 +251,7 @@ export function useVGMPlayer({
 
     // GainNode 생성 (초기값은 setMasterVolume에서 덮어씀)
     const gainNode = audioContext.createGain();
-    gainNode.gain.value = 1.75; // 마스터볼륨 100% 기본값 * 1.75 보정
+    gainNode.gain.value = 0.875; // 마스터볼륨 50% 기본값 * 1.75 보정
     gainNodeRef.current = gainNode;
 
     processor.connect(gainNode);

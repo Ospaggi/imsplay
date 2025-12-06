@@ -255,7 +255,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('all');
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
-  const [masterVolume, setMasterVolumeState] = useState<number>(100);
+  const [masterVolume, setMasterVolumeState] = useState<number>(50);
 
   // 드래그 앤 드롭 상태
   const [isDragging, setIsDragging] = useState(false);
