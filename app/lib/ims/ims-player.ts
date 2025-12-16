@@ -26,6 +26,7 @@ export class IMSPlayer {
   private currentTempo: number;
   private currentTick: number = 0;  // ISS 가사 동기화용 틱 카운터
   private channelInstruments: string[] = new Array(11).fill("");
+  private channelMuted: boolean[] = new Array(11).fill(false);  // 악기 없는 채널 뮤트
 
   // 제어 변수
   private VOL_C: number = 127;  // 전체 볼륨 (0-127)
@@ -69,6 +70,7 @@ export class IMSPlayer {
       this.curVol[i] = 0;
       this.displayVolumes[i] = 0;
       this.channelInstruments[i] = "";
+      this.channelMuted[i] = false;
       this.oplEngine.noteOff(i);
       this.oplEngine.setVoiceVolume(i, 0);
     }
@@ -242,6 +244,8 @@ export class IMSPlayer {
         this.oplEngine.setVoiceTimbre(ch, params);
         // 악기명 업데이트 (화면 표시용)
         this.channelInstruments[ch] = insName;
+        // 악기가 있으면 채널 활성화
+        this.channelMuted[ch] = false;
       } else {
         // 뱅크에서 악기를 찾을 수 없는 경우
         this.channelInstruments[ch] = "!" + insName;
@@ -249,6 +253,8 @@ export class IMSPlayer {
         this.oplEngine.noteOff(ch);
         this.oplEngine.setVoiceVolume(ch, 0);
         this.curVol[ch] = 0;
+        // 악기가 없으면 채널 뮤트 (이후 노트/볼륨 무시)
+        this.channelMuted[ch] = true;
       }
     }
   }
@@ -257,8 +263,13 @@ export class IMSPlayer {
    * 볼륨 변경 (vol_rt 포팅, IMS.C:123-126)
    */
   private handleVolumeChange(ch: number): void {
-    this.curVol[ch] = this.readByte();
+    const volume = this.readByte();
     this.curByte++;
+    // 뮤트된 채널은 볼륨 변경 무시
+    if (this.channelMuted[ch]) {
+      return;
+    }
+    this.curVol[ch] = volume;
     this.oplEngine.setVoiceVolume(ch, this.curVol[ch]);
   }
 
@@ -319,6 +330,11 @@ export class IMSPlayer {
     const volume = this.readByte();
     this.curByte++;
 
+    // 뮤트된 채널은 노트 무시
+    if (this.channelMuted[ch]) {
+      return;
+    }
+
     this.oplEngine.noteOff(ch);
 
     if (this.curVol[ch] !== volume) {
@@ -343,6 +359,11 @@ export class IMSPlayer {
 
     const volume = this.readByte();
     this.curByte++;
+
+    // 뮤트된 채널은 노트 무시
+    if (this.channelMuted[ch]) {
+      return;
+    }
 
     this.oplEngine.noteOff(ch);
 
