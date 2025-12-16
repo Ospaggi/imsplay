@@ -245,10 +245,6 @@ export function useIMSPlayer({
       const lenFill = outputBuffer.length;
       let posFill = 0;
 
-      // 틱당 생성할 샘플 수 계산
-      const tickDelay = player.getTickDelay(); // ms
-      const samplesPerTick = (audioContext.sampleRate * tickDelay) / 1000;
-
       let loopCount = 0;
       while (posFill < lenFill) {
         loopCount++;
@@ -297,6 +293,10 @@ export function useIMSPlayer({
           }
           delay = player.tick();
         } while (!delay); // delay가 0이면 다음 이벤트 계속 처리
+
+        // 틱당 생성할 샘플 수 계산 (tick() 후에 계산해야 템포 변경이 반영됨)
+        const tickDelay = player.getTickDelay(); // ms
+        const samplesPerTick = (audioContext.sampleRate * tickDelay) / 1000;
 
         lenGenRef.current += delay * samplesPerTick;
       }

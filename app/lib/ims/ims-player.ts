@@ -219,15 +219,82 @@ export class IMSPlayer {
         tDelay += ch;
       }
 
-      // 긴 딜레이 감지 - 10000틱 이상이면 곡 종료로 처리
-      if (tDelay >= 10000) {
-        this.isPlaying = false;
+      // 긴 딜레이 후 남은 데이터에 실제 노트가 없으면 종료
+      if (tDelay >= 240 && this.isOnlyDelayOrSilentEventsRemaining()) {
+        if (this.loopEnabled) {
+          this.curByte = 0;
+          this.runningStatus = 0;
+        } else {
+          this.isPlaying = false;
+        }
         return 1;
       }
 
       // 원본: return (t_delay);
       return tDelay;
     }
+  }
+
+  /**
+   * 현재 위치부터 파일 끝까지 실제 노트 이벤트가 없는지 확인
+   * (딜레이, 악기 변경, 볼륨 변경, 루프 마커만 있으면 true)
+   */
+  private isOnlyDelayOrSilentEventsRemaining(): boolean {
+    let pos = this.curByte;
+    let runStatus = this.runningStatus;
+
+    while (pos < this.imsData.byteSize) {
+      const ch = readPagedByte(this.imsData.musicData, pos);
+
+      // 루프 마커 - 여기까지 노트 없으면 true
+      if (ch === 0xfc) {
+        return true;
+      }
+
+      // 딜레이 바이트 (0x00-0xF7, 0xF8)
+      if (ch < 0x80 || ch === 0xf8) {
+        pos++;
+        continue;
+      }
+
+      // 이벤트 처리
+      let idcode = ch;
+      if (ch < 0x80) {
+        idcode = runStatus;
+      } else {
+        pos++;
+        runStatus = ch;
+      }
+
+      const eventType = idcode & 0xf0;
+
+      // 노트 이벤트 (0x80, 0x90) - 실제 소리가 나는 이벤트
+      if (eventType === 0x80 || eventType === 0x90) {
+        return false;  // 노트가 있으면 false
+      }
+
+      // 소리 없는 이벤트들은 건너뛰기
+      switch (eventType) {
+        case 0xc0:  // Instrument Change: 1 byte
+          pos++;
+          break;
+        case 0xa0:  // Volume Change: 1 byte
+          pos++;
+          break;
+        case 0xe0:  // Pitch Bend: 2 bytes
+          pos += 2;
+          break;
+        case 0xf0:  // Tempo Change: 5 bytes
+          pos += 5;
+          break;
+        default:
+          // 알 수 없는 이벤트 - 안전하게 false
+          return false;
+      }
+    }
+
+    // 파일 끝까지 노트 없음
+    return true;
   }
 
   /**

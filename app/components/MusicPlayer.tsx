@@ -87,6 +87,8 @@ export const MUSIC_SAMPLES: MusicSample[] = [
   { musicFile: "/GRAD2-4.IMS", format: "IMS" },
   { musicFile: "/GRAD3-1.IMS", format: "IMS" },
   { musicFile: "/GRAD3-2.IMS", format: "IMS" },
+  { musicFile: "/TWINBEE1.IMS", format: "IMS" },
+  { musicFile: "/TWINBEE2.IMS", format: "IMS" },
 
   // ROL 샘플
   { musicFile: "/VV.ROL", format: "ROL" },
@@ -1161,7 +1163,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.57
+        {" "}IMS/ROL 웹플레이어 v1.59
       </div>
 
       {/* 메인 그리드 */}
