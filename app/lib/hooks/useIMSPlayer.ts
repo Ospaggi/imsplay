@@ -19,12 +19,8 @@ interface UseIMSPlayerOptions {
   onTrackEnd?: () => void;
   // 공유 AudioContext (IMS/ROL 플레이어 간 공유 - Safari autoplay 정책 준수)
   sharedAudioContextRef?: RefObject<AudioContext | null>;
-  // ═══════════════════════════════════════════════════════════════
-  // [MEDIA SESSION API - 비활성화됨]
-  // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-  // ═══════════════════════════════════════════════════════════════
-  // silentAudioRef?: RefObject<HTMLAudioElement | null>;
-  // ═══════════════════════════════════════════════════════════════
+  // Media Session API용 audio 요소 (srcObject로 MediaStream 연결)
+  audioElementRef?: RefObject<HTMLAudioElement | null>;
 }
 
 interface UseIMSPlayerReturn {
@@ -59,12 +55,7 @@ export function useIMSPlayer({
   forceReloadRef,
   onTrackEnd,
   sharedAudioContextRef,
-  // ═══════════════════════════════════════════════════════════════
-  // [MEDIA SESSION API - 비활성화됨]
-  // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-  // ═══════════════════════════════════════════════════════════════
-  // silentAudioRef,
-  // ═══════════════════════════════════════════════════════════════
+  audioElementRef,
 }: UseIMSPlayerOptions): UseIMSPlayerReturn {
   const [state, setState] = useState<IMSPlaybackState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,6 +79,7 @@ export function useIMSPlayer({
     }
   }, [sharedAudioContextRef]);
   const gainNodeRef = useRef<GainNode | null>(null);
+  const mediaStreamDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const uiUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileNameRef = useRef<string>("");
 
@@ -315,11 +307,28 @@ export function useIMSPlayer({
     gainNode.gain.value = 0.5; // 기본값 50%
     gainNodeRef.current = gainNode;
 
-    // processor → gainNode → destination
+    // processor → gainNode 연결
     processor.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+
+    // MediaStreamDestination으로 audio 태그에 연결 (Media Session API 지원)
+    if (audioElementRef?.current) {
+      try {
+        const mediaStreamDest = audioContext.createMediaStreamDestination();
+        mediaStreamDestRef.current = mediaStreamDest;
+        gainNode.connect(mediaStreamDest);
+        audioElementRef.current.srcObject = mediaStreamDest.stream;
+        console.log('[useIMSPlayer] MediaStreamDestination 연결 완료');
+      } catch (error) {
+        console.warn('[useIMSPlayer] MediaStreamDestination 실패, 직접 출력:', error);
+        gainNode.connect(audioContext.destination);
+      }
+    } else {
+      // audioElementRef가 없으면 직접 출력
+      gainNode.connect(audioContext.destination);
+    }
+
     processorRef.current = processor;
-  }, [onTrackEnd]);
+  }, [onTrackEnd, audioElementRef]);
 
   /**
    * 정리 함수 (AudioContext는 재사용을 위해 유지)
@@ -329,6 +338,12 @@ export function useIMSPlayer({
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
       uiUpdateIntervalRef.current = null;
+    }
+
+    // MediaStreamDestination 정리
+    if (mediaStreamDestRef.current) {
+      mediaStreamDestRef.current.disconnect();
+      mediaStreamDestRef.current = null;
     }
 
     // 오디오 프로세서만 정리 (AudioContext는 유지하여 Safari autoplay 정책 준수)
@@ -527,19 +542,14 @@ export function useIMSPlayer({
 
       // 이전에 재생 중이었다면 자동 재개
       if (wasPlayingBeforeBackgroundRef.current && !player.getState().isPlaying) {
-        // ═══════════════════════════════════════════════════════════════
-        // [MEDIA SESSION API - 비활성화됨]
-        // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-        // ═══════════════════════════════════════════════════════════════
-        // // 무음 오디오 재시작 (Media Session 활성화)
-        // if (silentAudioRef?.current && silentAudioRef.current.paused) {
-        //   try {
-        //     await silentAudioRef.current.play();
-        //   } catch (error) {
-        //     console.warn('[useIMSPlayer] 포그라운드 복귀 시 무음 오디오 재생 실패:', error);
-        //   }
-        // }
-        // ═══════════════════════════════════════════════════════════════
+        // Audio 요소 재시작 (Media Session 활성화)
+        if (audioElementRef?.current && audioElementRef.current.paused) {
+          try {
+            await audioElementRef.current.play();
+          } catch (error) {
+            console.warn('[useIMSPlayer] 포그라운드 복귀 시 Audio 요소 재생 실패:', error);
+          }
+        }
 
         // 플레이어 재생 재개
         player.play();
@@ -608,19 +618,15 @@ export function useIMSPlayer({
     console.log('[useIMSPlayer.play] AudioContext 준비 완료, 재생 시작');
     setError(null); // 에러 상태 클리어
 
-    // ═══════════════════════════════════════════════════════════════
-    // [MEDIA SESSION API - 비활성화됨]
-    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-    // ═══════════════════════════════════════════════════════════════
-    // // Media Session 활성화를 위한 무음 오디오 시작
-    // if (silentAudioRef?.current) {
-    //   try {
-    //     await silentAudioRef.current.play();
-    //   } catch (error) {
-    //     console.warn('[useIMSPlayer.play] 무음 오디오 재생 실패:', error);
-    //   }
-    // }
-    // ═══════════════════════════════════════════════════════════════
+    // Audio 요소 재생 (Media Session 활성화)
+    if (audioElementRef?.current) {
+      try {
+        await audioElementRef.current.play();
+        console.log('[useIMSPlayer.play] Audio 요소 재생 시작');
+      } catch (error) {
+        console.warn('[useIMSPlayer.play] Audio 요소 재생 실패:', error);
+      }
+    }
 
     playerRef.current.play();
 
@@ -630,9 +636,9 @@ export function useIMSPlayer({
     uiUpdateIntervalRef.current = setInterval(() => {
       if (playerRef.current) {
         setState({
-      ...playerRef.current.getState(),
-      fileName: fileNameRef.current,
-    });
+          ...playerRef.current.getState(),
+          fileName: fileNameRef.current,
+        });
       }
     }, 100);
 
@@ -640,15 +646,7 @@ export function useIMSPlayer({
       ...playerRef.current.getState(),
       fileName: fileNameRef.current,
     });
-  }, [
-    ensureAudioContextReady,
-    // ═══════════════════════════════════════════════════════════════
-    // [MEDIA SESSION API - 비활성화됨]
-    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-    // ═══════════════════════════════════════════════════════════════
-    // silentAudioRef
-    // ═══════════════════════════════════════════════════════════════
-  ]);
+  }, [ensureAudioContextReady, audioElementRef, getAudioContext]);
 
   /**
    * 일시정지
@@ -658,21 +656,10 @@ export function useIMSPlayer({
 
     playerRef.current.pause();
 
-    // ═══════════════════════════════════════════════════════════════
-    // [MEDIA SESSION API - 비활성화됨]
-    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-    // ═══════════════════════════════════════════════════════════════
-    // // 무음 오디오도 일시정지
-    // if (silentAudioRef?.current && !silentAudioRef.current.paused) {
-    //   silentAudioRef.current.pause();
-    //
-    //   // Safari 워크어라운드: pause 후 reload로 play 버튼 수정
-    //   const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    //   if (isSafari) {
-    //     silentAudioRef.current.load();
-    //   }
-    // }
-    // ═══════════════════════════════════════════════════════════════
+    // Audio 요소 일시정지
+    if (audioElementRef?.current && !audioElementRef.current.paused) {
+      audioElementRef.current.pause();
+    }
 
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
@@ -683,14 +670,7 @@ export function useIMSPlayer({
       ...playerRef.current.getState(),
       fileName: fileNameRef.current,
     });
-  }, [
-    // ═══════════════════════════════════════════════════════════════
-    // [MEDIA SESSION API - 비활성화됨]
-    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-    // ═══════════════════════════════════════════════════════════════
-    // silentAudioRef
-    // ═══════════════════════════════════════════════════════════════
-  ]);
+  }, [audioElementRef]);
 
   /**
    * 정지
@@ -701,16 +681,11 @@ export function useIMSPlayer({
     playerRef.current.stop();
     lenGenRef.current = 0;
 
-    // ═══════════════════════════════════════════════════════════════
-    // [MEDIA SESSION API - 비활성화됨]
-    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-    // ═══════════════════════════════════════════════════════════════
-    // // 무음 오디오 정지 및 리셋
-    // if (silentAudioRef?.current) {
-    //   silentAudioRef.current.pause();
-    //   silentAudioRef.current.currentTime = 0;
-    // }
-    // ═══════════════════════════════════════════════════════════════
+    // Audio 요소 정지
+    if (audioElementRef?.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
+    }
 
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
@@ -721,14 +696,7 @@ export function useIMSPlayer({
       ...playerRef.current.getState(),
       fileName: fileNameRef.current,
     });
-  }, [
-    // ═══════════════════════════════════════════════════════════════
-    // [MEDIA SESSION API - 비활성화됨]
-    // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
-    // ═══════════════════════════════════════════════════════════════
-    // silentAudioRef
-    // ═══════════════════════════════════════════════════════════════
-  ]);
+  }, [audioElementRef]);
 
   /**
    * 볼륨 설정 (0-127)

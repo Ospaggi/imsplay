@@ -36,6 +36,8 @@ interface UseVGMPlayerOptions {
   forceReloadRef?: RefObject<boolean>;
   onTrackEnd?: () => void;
   sharedAudioContextRef?: RefObject<AudioContext | null>;
+  // Media Session API 지원을 위한 Audio 요소 참조
+  audioElementRef?: RefObject<HTMLAudioElement | null>;
 }
 
 interface UseVGMPlayerReturn {
@@ -65,6 +67,7 @@ export function useVGMPlayer({
   forceReloadRef,
   onTrackEnd,
   sharedAudioContextRef,
+  audioElementRef,
 }: UseVGMPlayerOptions): UseVGMPlayerReturn {
   const [state, setState] = useState<CompatiblePlaybackState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,6 +78,7 @@ export function useVGMPlayer({
   const localAudioContextRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
+  const mediaStreamDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
   const uiUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileNameRef = useRef<string>("");
 
@@ -265,10 +269,32 @@ export function useVGMPlayer({
     gainNode.gain.value = 0.875; // 마스터볼륨 50% 기본값 * 1.75 보정
     gainNodeRef.current = gainNode;
 
+    // processor → gainNode 연결
     processor.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+
+    // MediaStreamDestination 연결 (Media Session API 지원)
+    // audio 태그를 통해 출력하여 블루투스 컨트롤 지원
+    try {
+      const mediaStreamDest = audioContext.createMediaStreamDestination();
+      mediaStreamDestRef.current = mediaStreamDest;
+      gainNode.connect(mediaStreamDest);
+
+      // Audio 요소에 스트림 연결
+      if (audioElementRef?.current) {
+        audioElementRef.current.srcObject = mediaStreamDest.stream;
+        console.log('[useVGMPlayer] MediaStreamDestination 연결 완료');
+      } else {
+        // audioElementRef가 없으면 폴백으로 직접 출력
+        console.warn('[useVGMPlayer] audioElementRef 없음, 직접 출력으로 폴백');
+        gainNode.connect(audioContext.destination);
+      }
+    } catch (error) {
+      console.warn('[useVGMPlayer] MediaStreamDestination 생성 실패, 폴백 사용:', error);
+      gainNode.connect(audioContext.destination);
+    }
+
     processorRef.current = processor;
-  }, [onTrackEnd]);
+  }, [onTrackEnd, audioElementRef]);
 
   /**
    * 정리 함수
@@ -277,6 +303,12 @@ export function useVGMPlayer({
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
       uiUpdateIntervalRef.current = null;
+    }
+
+    // MediaStreamDestination 정리
+    if (mediaStreamDestRef.current) {
+      mediaStreamDestRef.current.disconnect();
+      mediaStreamDestRef.current = null;
     }
 
     if (processorRef.current) {
@@ -407,6 +439,17 @@ export function useVGMPlayer({
     }
 
     setError(null);
+
+    // Media Session API 활성화를 위한 audio 요소 재생
+    if (audioElementRef?.current) {
+      try {
+        await audioElementRef.current.play();
+        console.log('[useVGMPlayer.play] Audio 요소 재생 시작');
+      } catch (error) {
+        console.warn('[useVGMPlayer.play] Audio 요소 재생 실패:', error);
+      }
+    }
+
     playerRef.current.play();
 
     uiUpdateIntervalRef.current = setInterval(() => {
@@ -416,7 +459,7 @@ export function useVGMPlayer({
     }, 100);
 
     setState(convertState(playerRef.current.getState(), fileNameRef.current, playerRef.current.getLastRegisterWrites()));
-  }, [ensureAudioContextReady, convertState, getAudioContext]);
+  }, [ensureAudioContextReady, convertState, getAudioContext, audioElementRef]);
 
   /**
    * 일시정지
@@ -426,13 +469,23 @@ export function useVGMPlayer({
 
     playerRef.current.pause();
 
+    // Audio 요소도 일시정지
+    if (audioElementRef?.current && !audioElementRef.current.paused) {
+      audioElementRef.current.pause();
+      // Safari 워크어라운드: pause 후 load로 미디어 상태 수정
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      if (isSafari) {
+        audioElementRef.current.load();
+      }
+    }
+
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
       uiUpdateIntervalRef.current = null;
     }
 
     setState(convertState(playerRef.current.getState(), fileNameRef.current, playerRef.current.getLastRegisterWrites()));
-  }, [convertState]);
+  }, [convertState, audioElementRef]);
 
   /**
    * 정지
@@ -442,13 +495,19 @@ export function useVGMPlayer({
 
     playerRef.current.stop();
 
+    // Audio 요소 정지 및 리셋
+    if (audioElementRef?.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
+    }
+
     if (uiUpdateIntervalRef.current) {
       clearInterval(uiUpdateIntervalRef.current);
       uiUpdateIntervalRef.current = null;
     }
 
     setState(convertState(playerRef.current.getState(), fileNameRef.current, playerRef.current.getLastRegisterWrites()));
-  }, [convertState]);
+  }, [convertState, audioElementRef]);
 
   /**
    * 볼륨 설정 (0-127)
