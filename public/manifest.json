@@ -1,0 +1,16 @@
+{
+  "name": "IMS Player",
+  "short_name": "IMS Player",
+  "description": "Web-based AdLib music player for IMS and ROL files",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000080",
+  "theme_color": "#000080",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
