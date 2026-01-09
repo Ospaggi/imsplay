@@ -1,6 +1,6 @@
 /*
- * DBOPL WASM Wrapper
- * Provides the same interface as alib.js but uses WebAssembly
+ * Nuked-OPL3 WASM Wrapper
+ * Provides the same interface as dbopl-wasm.js for easy switching
  */
 
 var DBOPL;
@@ -21,7 +21,7 @@ var DBOPL;
             return modulePromise;
         }
 
-        modulePromise = DBOPLModule().then(module => {
+        modulePromise = NukedOPLModule().then(module => {
             wasmModule = module;
             return module;
         });
@@ -40,7 +40,7 @@ var DBOPL;
     DBOPL.isReady = isReady;
 
     /**
-     * OPL class - compatible with alib.js interface
+     * OPL class - compatible with dbopl-wasm.js interface
      */
     class OPL {
         /**
@@ -57,8 +57,8 @@ var DBOPL;
             this.freq = freq;
 
             // Create chip instance
-            this.chip = wasmModule._dbopl_create();
-            wasmModule._dbopl_init(this.chip, freq);
+            this.chip = wasmModule._nuked_create();
+            wasmModule._nuked_init(this.chip, freq);
 
             // Allocate buffer in WASM memory
             // Max 512 samples * 2 channels * 2 bytes per sample
@@ -75,7 +75,7 @@ var DBOPL;
          * @param {number} val - Value to write
          */
         write(reg, val) {
-            wasmModule._dbopl_write(this.chip, reg, val);
+            wasmModule._nuked_write(this.chip, reg, val);
         }
 
         /**
@@ -87,23 +87,28 @@ var DBOPL;
             if (lenSamples > 512) {
                 throw new Error('OPL.generate() cannot generate more than 512 samples per call');
             }
-            if (lenSamples < 2) {
-                throw new Error('OPL.generate() cannot generate fewer than 2 samples per call');
+            if (lenSamples < 1) {
+                throw new Error('OPL.generate() cannot generate fewer than 1 sample per call');
             }
 
-            // Generate samples
-            wasmModule._dbopl_generate(this.chip, this.bufferPtr, lenSamples);
+            // Generate samples (Nuked-OPL3 always outputs stereo)
+            wasmModule._nuked_generate(this.chip, this.bufferPtr, lenSamples);
 
             // Copy from WASM memory to JavaScript buffer
-            // Use HEAP16 directly - convert byte offset to int16 index
             const startIndex = this.bufferPtr >> 1;
             const wasmBuffer = wasmModule.HEAP16.subarray(
                 startIndex,
-                startIndex + lenSamples * this.channels
+                startIndex + lenSamples * 2  // Always stereo from Nuked-OPL3
             );
 
-            // Copy to our buffer (WASM memory can be detached on growth)
-            this.buffer.set(wasmBuffer);
+            // If mono requested, just take left channel
+            if (this.channels === 1) {
+                for (let i = 0; i < lenSamples; i++) {
+                    this.buffer[i] = wasmBuffer[i * 2];
+                }
+            } else {
+                this.buffer.set(wasmBuffer.subarray(0, lenSamples * 2));
+            }
 
             return this.buffer;
         }
@@ -113,7 +118,7 @@ var DBOPL;
          */
         destroy() {
             if (this.chip) {
-                wasmModule._dbopl_destroy(this.chip);
+                wasmModule._nuked_destroy(this.chip);
                 this.chip = null;
             }
             if (this.bufferPtr) {

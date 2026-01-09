@@ -33,8 +33,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        <script src="/dbopl.js"></script>
-        <script src="/dbopl-wasm.js"></script>
+        <script src="/nuked-opl3.js"></script>
+        <script src="/nuked-wasm.js"></script>
       </head>
       <body>
         {children}

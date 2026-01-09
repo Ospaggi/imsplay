@@ -2,7 +2,6 @@
  * MusicPlayer.tsx - 통합 음악 플레이어 UI 컴포넌트
  *
  * Impulse Tracker 스타일 DOS UI
- * v1.48 - AudioContext 공유로 IMS→ROL 자동 전환 재생 수정
  */
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
@@ -25,10 +24,11 @@ import DosSlider from "~/components/dos-ui/DosSlider";
 import PianoRoll from "./PianoRoll";
 import LyricsDisplay from "./LyricsDisplay";
 import type { ISSData } from "~/routes/api/parse-iss";
-import { X, Repeat1, Repeat, Play, Pause, Square, SkipBack, SkipForward, Shuffle } from "lucide-react";
+import { Repeat1, Repeat, Play, Square, SkipBack, SkipForward, Shuffle } from "lucide-react";
+import { version } from "../../package.json";
 
 type MusicFormat = "ROL" | "IMS" | "VGM" | null;
-type RepeatMode = 'none' | 'all' | 'one' | 'shuffle';
+type RepeatMode = 'all' | 'one' | 'shuffle';
 
 // 샘플 음악 목록
 export interface MusicSample {
@@ -245,9 +245,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const [loadedFileCount, setLoadedFileCount] = useState<number>(0);
   const [totalFilesToLoad, setTotalFilesToLoad] = useState<number>(0);
 
-  // 현재 재생 중인 트랙
-  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(0); // 리스트 UI 선택용
-  const [playingTrackIndex, setPlayingTrackIndex] = useState<number>(0); // 실제 재생 중인 곡 인덱스
+  // 트랙 인덱스
+  const [selectedTrackIndex, setSelectedTrackIndex] = useState<number>(0); // 리스트에서 선택된 곡
+  const [playingTrackIndex, setPlayingTrackIndex] = useState<number>(0); // 실제 재생 중인 곡
   const [currentMusicFile, setCurrentMusicFile] = useState<File | null>(null);
   const [currentBnkFile, setCurrentBnkFile] = useState<File | null>(null);
   const [currentIssData, setCurrentIssData] = useState<ISSData | null>(null); // ISS 가사 데이터
@@ -258,6 +258,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
   const [masterVolume, setMasterVolumeState] = useState<number>(50);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState<boolean>(false);
 
   // 드래그 앤 드롭 상태
   const [isDragging, setIsDragging] = useState(false);
@@ -521,7 +522,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       setUserMusicFileTitles(titlesMap);
       setUserBnkFiles(bnkMap);
       setUserIssFiles(issMap);
-      setCurrentTrackIndex(0);
+      setSelectedTrackIndex(0);
+      setPlayingTrackIndex(0);
 
       // 첫 번째 곡 로드 (자동 재생 안 함)
       if (musicFiles.length > 0) {
@@ -609,8 +611,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     }
 
     setIsLoadingTrack(true);
-    setCurrentTrackIndex(index);
-    setPlayingTrackIndex(index); // 실제 재생될 곡 인덱스 업데이트
+    setSelectedTrackIndex(index);
+    setPlayingTrackIndex(index);
 
     try {
       if (isUserFolder || files) {
@@ -776,10 +778,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
    * 이전 곡 재생
    */
   const playPreviousTrack = useCallback(() => {
-    if (repeatMode === 'all') {
-      const prevIndex = playingTrackIndex === 0 ? musicList.length - 1 : playingTrackIndex - 1;
-      loadTrack(prevIndex, undefined, undefined, undefined, true);
-    } else if (repeatMode === 'shuffle') {
+    setShouldAutoScroll(true);
+    if (repeatMode === 'shuffle') {
       // 현재 곡을 제외한 랜덤 선택
       let randomIndex;
       if (musicList.length > 1) {
@@ -790,11 +790,10 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         randomIndex = 0;
       }
       loadTrack(randomIndex, undefined, undefined, undefined, true);
-    } else if (repeatMode === 'none') {
-      if (playingTrackIndex > 0) {
-        const prevIndex = playingTrackIndex - 1;
-        loadTrack(prevIndex, undefined, undefined, undefined, true);
-      }
+    } else {
+      // 'all' 또는 'one' 모드: 순환 재생
+      const prevIndex = playingTrackIndex === 0 ? musicList.length - 1 : playingTrackIndex - 1;
+      loadTrack(prevIndex, undefined, undefined, undefined, true);
     }
   }, [repeatMode, playingTrackIndex, musicList.length, loadTrack]);
 
@@ -802,10 +801,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
    * 다음 곡 재생
    */
   const playNextTrack = useCallback(() => {
-    if (repeatMode === 'all') {
-      const nextIndex = (playingTrackIndex + 1) % musicList.length;
-      loadTrack(nextIndex, undefined, undefined, undefined, true);
-    } else if (repeatMode === 'shuffle') {
+    setShouldAutoScroll(true);
+    if (repeatMode === 'shuffle') {
       // 현재 곡을 제외한 랜덤 선택
       let randomIndex;
       if (musicList.length > 1) {
@@ -816,11 +813,10 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         randomIndex = 0;
       }
       loadTrack(randomIndex, undefined, undefined, undefined, true);
-    } else if (repeatMode === 'none') {
-      if (playingTrackIndex < musicList.length - 1) {
-        const nextIndex = playingTrackIndex + 1;
-        loadTrack(nextIndex, undefined, undefined, undefined, true);
-      }
+    } else {
+      // 'all' 또는 'one' 모드: 순환 재생
+      const nextIndex = (playingTrackIndex + 1) % musicList.length;
+      loadTrack(nextIndex, undefined, undefined, undefined, true);
     }
   }, [repeatMode, playingTrackIndex, musicList.length, loadTrack]);
 
@@ -828,6 +824,14 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   useEffect(() => {
     playNextTrackRef.current = playNextTrack;
   }, [playNextTrack]);
+
+  // autoScroll 후 리셋
+  useEffect(() => {
+    if (shouldAutoScroll) {
+      const timer = setTimeout(() => setShouldAutoScroll(false), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoScroll]);
 
   /**
    * 트랙 종료 감지 및 처리
@@ -845,7 +849,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [state?.isPlaying, state?.currentByte, state?.totalSize, state?.fileName, repeatMode, currentMusicFile, isLoadingTrack, currentTrackIndex, playNextTrack]);
+  }, [state?.isPlaying, state?.currentByte, state?.totalSize, state?.fileName, repeatMode, currentMusicFile, isLoadingTrack, playNextTrack]);
 
   /**
    * Media Session API 통합 (블루투스 이어폰, 잠금 화면 제어 지원)
@@ -868,7 +872,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     if (currentMusicFile) {
       const title = isUserFolder
         ? userMusicFileTitles.get(currentMusicFile.name) || currentMusicFile.name.replace(/\.(ims|rol|vgm|vgz)$/i, '')
-        : musicSamples[currentTrackIndex]?.title || currentMusicFile.name.replace(/\.(ims|rol|vgm|vgz)$/i, '');
+        : musicSamples[playingTrackIndex]?.title || currentMusicFile.name.replace(/\.(ims|rol|vgm|vgz)$/i, '');
 
       const artist = format === "IMS" ? "IMS Music" : format === "VGM" ? "VGM Music" : "AdLib ROL Music";
       const album = isUserFolder ? userFolderName : "Sample Music";
@@ -916,7 +920,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         navigator.mediaSession.setActionHandler("stop", null);
       }
     };
-  }, [state?.isPlaying, state?.isPaused, currentMusicFile, play, pause, stop, playPreviousTrack, playNextTrack, isUserFolder, userMusicFileTitles, musicSamples, currentTrackIndex, format, userFolderName]);
+  }, [state?.isPlaying, state?.isPaused, currentMusicFile, play, pause, stop, playPreviousTrack, playNextTrack, isUserFolder, userMusicFileTitles, musicSamples, playingTrackIndex, format, userFolderName]);
 
   // progress bar
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
@@ -933,30 +937,11 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         return {
           key: `${index}-${file.name}`,
           content: (
-            <div className="flex space-between align-center w-full" style={{ overflow: 'hidden' }}>
-              <div className="flex gap-8 align-center" style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-                <span className={`dos-badge ${format === 'ROL' ? 'dos-badge-rol' : format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`} style={{ flexShrink: 0 }}>
-                  {format}
-                </span>
-                <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
-              </div>
-              <DosButton
-                onClick={() => {
-                  forceReloadRef.current = true;
-                  loadTrack(index, undefined, undefined, undefined, true);
-                }}
-                disabled={isLoadingTrack}
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Play size={16} />
-              </DosButton>
+            <div className="flex gap-8 align-center w-full" style={{ overflow: 'hidden' }}>
+              <span className={`dos-badge ${format === 'ROL' ? 'dos-badge-rol' : format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`} style={{ flexShrink: 0 }}>
+                {format}
+              </span>
+              <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
             </div>
           ),
         };
@@ -966,45 +951,31 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       return musicSamples.map((sample, index) => ({
         key: sample.musicFile,
         content: (
-          <div className="flex space-between align-center w-full" style={{ overflow: 'hidden' }}>
-            <div className="flex gap-8 align-center" style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
-              <span className={`dos-badge ${sample.format === 'ROL' ? 'dos-badge-rol' : sample.format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`} style={{ flexShrink: 0 }}>
-                {sample.format}
-              </span>
-              <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sample.title || sample.musicFile.slice(1)}</span>
-            </div>
-            <DosButton
-              onClick={() => {
-                forceReloadRef.current = true;
-                loadTrack(index, undefined, undefined, undefined, true);
-              }}
-              disabled={isLoadingTrack}
-              style={{
-                width: '28px',
-                height: '28px',
-                padding: '2px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Play size={16} />
-            </DosButton>
+          <div className="flex gap-8 align-center w-full" style={{ overflow: 'hidden' }}>
+            <span className={`dos-badge ${sample.format === 'ROL' ? 'dos-badge-rol' : sample.format === 'VGM' ? 'dos-badge-vgm' : 'dos-badge-ims'}`} style={{ flexShrink: 0 }}>
+              {sample.format}
+            </span>
+            <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sample.title || sample.musicFile.slice(1)}</span>
           </div>
         ),
       }));
     }
-  }, [isUserFolder, userMusicFiles, userMusicFileTitles, musicSamples, isLoadingTrack, state?.isPlaying, stop, loadTrack]);
+  }, [isUserFolder, userMusicFiles, userMusicFileTitles, musicSamples]);
 
-  // 선택된 트랙의 키 (재생 중인 곡 기준으로 포커스)
+  // 선택된 트랙의 키 (UI 선택 기준)
   const selectedKey = useMemo(() => {
     if (isUserFolder) {
-      const file = userMusicFiles[playingTrackIndex];
-      return file ? `${playingTrackIndex}-${file.name}` : "";
+      const file = userMusicFiles[selectedTrackIndex];
+      return file ? `${selectedTrackIndex}-${file.name}` : "";
     } else {
-      return musicSamples[playingTrackIndex]?.musicFile || "";
+      return musicSamples[selectedTrackIndex]?.musicFile || "";
     }
-  }, [isUserFolder, userMusicFiles, musicSamples, playingTrackIndex]);
+  }, [isUserFolder, userMusicFiles, musicSamples, selectedTrackIndex]);
+
+  // 리스트 아이템 클릭 = 선택만 (재생 안 함)
+  const handleListSelect = useCallback((_key: string, index: number) => {
+    setSelectedTrackIndex(index);
+  }, []);
 
   // 현재 트랙 제목 (상태바 표시용 - 재생 중인 곡 기준)
   const currentTrackTitle = useMemo(() => {
@@ -1124,7 +1095,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         <a href="https://cafe.naver.com/olddos" target="_blank" rel="noopener noreferrer" className="dos-link">
           도스박물관
         </a>
-        {" "}IMS/ROL 웹플레이어 v1.62
+        {" "}IMS/ROL 웹플레이어 v{version}
       </div>
 
       {/* 메인 그리드 */}
@@ -1193,7 +1164,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 {/* 이전 곡 */}
                 <DosButton
                   onClick={playPreviousTrack}
-                  disabled={!state || (repeatMode === 'none' && playingTrackIndex === 0)}
+                  disabled={!state}
                   style={{
                     flex: 1,
                     height: '28px',
@@ -1206,16 +1177,13 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                   <SkipBack size={16} />
                 </DosButton>
 
-                {/* 재생/일시정지 */}
+                {/* 재생 */}
                 <DosButton
                   onClick={() => {
-                    if (state?.isPaused) {
-                      play();
-                    } else {
-                      pause();
-                    }
+                    forceReloadRef.current = true;
+                    loadTrack(selectedTrackIndex, undefined, undefined, undefined, true);
                   }}
-                  disabled={!state || (!state.isPlaying && !state.isPaused)}
+                  disabled={isLoadingTrack || musicList.length === 0}
                   style={{
                     flex: 1,
                     height: '28px',
@@ -1225,7 +1193,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                     justifyContent: 'center'
                   }}
                 >
-                  {state?.isPaused ? <Play size={16} /> : <Pause size={16} />}
+                  <Play size={16} />
                 </DosButton>
 
                 {/* 정지 */}
@@ -1247,7 +1215,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 {/* 다음 곡 */}
                 <DosButton
                   onClick={playNextTrack}
-                  disabled={!state || (repeatMode === 'none' && playingTrackIndex === musicList.length - 1)}
+                  disabled={!state}
                   style={{
                     flex: 1,
                     height: '28px',
@@ -1263,27 +1231,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
               {/* 반복 모드 */}
               <div className="flex" style={{ gap: '2px', margin: 0 }}>
-                <DosButton
-                  onClick={() => setRepeatMode('none')}
-                  active={repeatMode === 'none'}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    padding: '2px',
-                    margin: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderTop: repeatMode === 'none' ? '2px solid black' : '2px solid white',
-                    borderLeft: repeatMode === 'none' ? '2px solid black' : '2px solid white',
-                    borderBottom: repeatMode === 'none' ? '2px solid white' : '2px solid black',
-                    borderRight: repeatMode === 'none' ? '2px solid white' : '2px solid black',
-                    backgroundColor: repeatMode === 'none' ? '#00FF00' : '#C0C0C0',
-                    color: 'black'
-                  }}
-                >
-                  <X size={12} />
-                </DosButton>
                 <DosButton
                   onClick={() => setRepeatMode('all')}
                   active={repeatMode === 'all'}
@@ -1356,7 +1303,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
             <DosList
               items={listItems}
               selectedKey={selectedKey}
-              scrollToIndex={currentTrackIndex}
+              scrollToIndex={playingTrackIndex}
+              autoScroll={shouldAutoScroll}
+              onSelect={handleListSelect}
             />
           </DosPanel>
 
@@ -1433,7 +1382,6 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
           <ChannelVisualizer
             channelVolumes={state?.currentVolumes ?? Array(11).fill(0)}
             instrumentNames={state?.instrumentNames}
-            lastRegisterWrites={state?.lastRegisterWrites}
           />
 
           {/* 가사 / 크레딧 */}

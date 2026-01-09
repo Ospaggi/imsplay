@@ -174,7 +174,7 @@ export function useVGMPlayer({
         // Web Audio API 초기화
         let audioContext = getAudioContext();
         if (!audioContext || audioContext.state === 'closed') {
-          audioContext = new AudioContext();
+          audioContext = new AudioContext({ sampleRate: 49716 });
           setAudioContext(audioContext);
         }
 
@@ -353,7 +353,7 @@ export function useVGMPlayer({
 
     if (currentContext.state === 'closed') {
       try {
-        const newAudioContext = new AudioContext();
+        const newAudioContext = new AudioContext({ sampleRate: 49716 });
         setAudioContext(newAudioContext);
 
         if (processorRef.current) {

@@ -152,7 +152,7 @@ export function useROLPlayer({
         // Web Audio API 초기화 (기존 AudioContext 재사용 - Safari autoplay 정책)
         let audioContext = getAudioContext();
         if (!audioContext || audioContext.state === 'closed') {
-          audioContext = new AudioContext();
+          audioContext = new AudioContext({ sampleRate: 49716 });
           setAudioContext(audioContext);
         }
 
@@ -360,7 +360,7 @@ export function useROLPlayer({
     if (currentContext.state === 'closed') {
       console.log('[useROLPlayer.ensureAudioContextReady] AudioContext가 closed 상태입니다. 재생성 중...');
       try {
-        const newAudioContext = new AudioContext();
+        const newAudioContext = new AudioContext({ sampleRate: 49716 });
         setAudioContext(newAudioContext);
 
         // ScriptProcessorNode 재생성
@@ -394,7 +394,7 @@ export function useROLPlayer({
         // Resume 실패 시 재생성 시도
         console.log('[useROLPlayer.ensureAudioContextReady] Resume 실패, AudioContext 재생성 시도...');
         try {
-          const newAudioContext = new AudioContext();
+          const newAudioContext = new AudioContext({ sampleRate: 49716 });
           setAudioContext(newAudioContext);
 
           // ScriptProcessorNode 재생성

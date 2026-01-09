@@ -8,10 +8,9 @@ interface DosMeterProps {
   label: string;
   value: number; // 0-127
   maxValue?: number;
-  lastWrite?: {reg: number, val: number}; // 마지막 레지스터 쓰기
 }
 
-export default function DosMeter({ label, value, maxValue = 127, lastWrite }: DosMeterProps) {
+export default function DosMeter({ label, value, maxValue = 127 }: DosMeterProps) {
   const [displayValue, setDisplayValue] = useState(value);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -59,21 +58,9 @@ export default function DosMeter({ label, value, maxValue = 127, lastWrite }: Do
     labelClass += " dos-meter-label-missing";
   }
 
-  // 레지스터 값을 16진수 문자열로 변환
-  const regHex = lastWrite?.reg !== undefined
-    ? lastWrite.reg.toString(16).toUpperCase().padStart(2, '0')
-    : '--';
-  const valHex = lastWrite?.val !== undefined
-    ? lastWrite.val.toString(16).toUpperCase().padStart(2, '0')
-    : '--';
-
   return (
     <div className="dos-meter-horizontal">
       <div className={labelClass}>{displayLabel}</div>
-      <div className="dos-meter-reg-container">
-        <span className="dos-meter-reg">{regHex}</span>
-        <span className="dos-meter-val">{valHex}</span>
-      </div>
       <div className="dos-meter-segments">
         {Array.from({ length: totalSegments }).map((_, index) => {
           const isFilled = index < filledSegments;

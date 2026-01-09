@@ -7,7 +7,7 @@
 
 import * as constants from "./constants";
 
-// DBOPL 타입 정의 (dbopl-wasm.js)
+// OPL 에뮬레이터 타입 정의 (nuked-wasm.js 또는 dbopl-wasm.js)
 declare global {
   interface Window {
     DBOPL: {
@@ -77,7 +77,7 @@ export class OPLEngine {
       }
       this.opl = new window.DBOPL.OPL(sampleRate, 2);
     } else {
-      throw new Error('DBOPL WASM not loaded. Make sure dbopl.js and dbopl-wasm.js are included in the page.');
+      throw new Error('OPL WASM not loaded. Make sure nuked-opl3.js and nuked-wasm.js are included in the page.');
     }
 
     // 초기화 (SoundWarmInit 포팅)

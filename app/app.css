@@ -516,31 +516,6 @@ body {
   color: var(--color-white);
 }
 
-/* 레지스터 값 표시 컨테이너 */
-.dos-meter-reg-container {
-  display: flex;
-  gap: 2px;
-  margin-left: 0px;
-  flex-shrink: 0;
-}
-
-.dos-meter-reg,
-.dos-meter-val {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
-  font-size: 16px;
-  background: var(--bg-main);
-  color: var(--color-cyan);
-  border-top: 2px solid var(--border-highlight);
-  border-left: 2px solid var(--border-highlight);
-  border-right: 2px solid var(--border-dark);
-  border-bottom: 2px solid var(--border-dark);
-}
-
 .dos-meter-segments {
   display: flex;
   gap: 1px;
