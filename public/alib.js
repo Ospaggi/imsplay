@@ -227,28 +227,27 @@ var DBOPL;
             let noiseBit = chip.ForwardNoise() & 0x1;
             let c2 = this.Op(2).ForwardWave();
             let c5 = this.Op(5).ForwardWave();
-            // Improved phaseBit calculation based on Nuked OPL3
-            // Extract individual bits from hi-hat (c2) and tom-cymbal (c5) phases
+            // Nuked OPL3: Extract phase bits from hi-hat (c2) and top-cymbal (c5)
             let hh_bit2 = (c2 >> 2) & 1;
             let hh_bit3 = (c2 >> 3) & 1;
             let hh_bit7 = (c2 >> 7) & 1;
             let hh_bit8 = (c2 >> 8) & 1;
             let tc_bit3 = (c5 >> 3) & 1;
             let tc_bit5 = (c5 >> 5) & 1;
-            // Combine with XOR operations (Nuked OPL3 method)
+            // Nuked OPL3: rm_xor calculation
             let rm_xor = (hh_bit2 ^ hh_bit7) | (hh_bit3 ^ tc_bit5) | (tc_bit3 ^ tc_bit5);
             //Hi-Hat
             let hhVol = this.Op(2).ForwardVolume();
             if (!((hhVol) >= ((12 * 256) >> (3 - ((9) - 9))))) {
-                // Nuked OPL3: rm_xor << 9 | ((rm_xor ^ noise) ? 0xd0 : 0x34)
-                let hhIndex = (rm_xor << 9) | ((rm_xor ^ noiseBit) ? 0xd0 : 0x34);
+                // Nuked OPL3: (rm_xor << 9) | (noise ? 0xd0 : 0x34)
+                let hhIndex = (rm_xor << 9) | (noiseBit ? 0xd0 : 0x34);
                 sample += this.Op(2).GetWave(hhIndex, hhVol);
             }
             //Snare Drum
             let sdVol = this.Op(3).ForwardVolume();
             if (!((sdVol) >= ((12 * 256) >> (3 - ((9) - 9))))) {
-                // Snare uses hi-hat bit8
-                let sdIndex = (0x100 + (hh_bit8 << 8)) ^ (noiseBit << 8);
+                // Nuked OPL3: (hh_bit8 << 9) | ((hh_bit8 ^ noise) << 8)
+                let sdIndex = (hh_bit8 << 9) | ((hh_bit8 ^ noiseBit) << 8);
                 sample += this.Op(3).GetWave(sdIndex, sdVol);
             }
             //Tom-tom
@@ -256,8 +255,8 @@ var DBOPL;
             //Top-Cymbal
             let tcVol = this.Op(5).ForwardVolume();
             if (!((tcVol) >= ((12 * 256) >> (3 - ((9) - 9))))) {
-                // Nuked OPL3: rm_xor << 9
-                let tcIndex = rm_xor << 9;
+                // Nuked OPL3: (rm_xor << 9) | 0x80
+                let tcIndex = (rm_xor << 9) | 0x80;
                 sample += this.Op(5).GetWave(tcIndex, tcVol);
             }
             sample <<= 1;

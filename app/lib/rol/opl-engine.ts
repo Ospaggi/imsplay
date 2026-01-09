@@ -7,10 +7,12 @@
 
 import * as constants from "./constants";
 
-// DBOPL 타입 정의 (alib.js)
+// DBOPL 타입 정의 (dbopl-wasm.js)
 declare global {
   interface Window {
     DBOPL: {
+      initWasm: () => Promise<unknown>;
+      isReady: () => boolean;
       OPL: new (sampleRate: number, channels: number) => OPL;
     };
   }
@@ -19,6 +21,7 @@ declare global {
 interface OPL {
   write(register: number, value: number): void;
   generate(samples: number): Int16Array;
+  destroy?(): void;
 }
 
 /**
@@ -66,11 +69,15 @@ export class OPLEngine {
    * @param sampleRate 샘플레이트 (기본값: 49716 Hz)
    */
   async init(sampleRate: number = 49716): Promise<void> {
-    // DBOPL (alib.js) 초기화 - 2채널 스테레오
+    // DBOPL WASM 초기화
     if (typeof window !== 'undefined' && window.DBOPL) {
+      // WASM 모듈이 로드되지 않았으면 초기화
+      if (!window.DBOPL.isReady()) {
+        await window.DBOPL.initWasm();
+      }
       this.opl = new window.DBOPL.OPL(sampleRate, 2);
     } else {
-      throw new Error('DBOPL (alib.js) not loaded. Make sure alib.js is included in the page.');
+      throw new Error('DBOPL WASM not loaded. Make sure dbopl.js and dbopl-wasm.js are included in the page.');
     }
 
     // 초기화 (SoundWarmInit 포팅)
