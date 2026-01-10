@@ -962,4 +962,9 @@ body {
     scrollbar-width: thin;
     scrollbar-color: #5b595c #363338;
   }
+
+  /* 페이지 배경 (body) */
+  body {
+    background: #121112;
+  }
 }
