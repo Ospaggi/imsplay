@@ -8,13 +8,13 @@
 - **IMS (Interactive Music System)** - 한국에서 개발된 이벤트 기반 음악 형식 (47개 샘플 포함)
 - **ROL (AdLib Visual Composer)** - AdLib Visual Composer 음악 형식 (6개 샘플 포함)
 - **BNK (Instrument Bank)** - 악기 정의 파일 (STANDARD.BNK + 12개 커스텀 뱅크)
-- 정확한 OPL2 FM 신디사이저 에뮬레이션 (DBOPL 사용, Percussion 5채널은 Nuked OPL3의 알고리즘을 병합)
+- 정확한 OPL2 FM 신디사이저 에뮬레이션 (Nuked-OPL3 사용)
 - 9채널 멜로딕 또는 11채널 멜로딕+타악기 모드
-- 루프 재생 (없음/전체/한곡)
+- 루프 재생 (전체/한곡/셔플)
 
 ### 🎛️ 재생 제어
-- 재생/일시정지/정지
-- 이전/다음 곡 자동 재생
+- 재생/정지
+- 이전/다음 곡
 - 마스터 볼륨 조절 (0-127)
 - 템포 조절 (50%-200%)
 - 키 조옮김 (-13 ~ +13, ROL 전용)
@@ -40,7 +40,7 @@
 - **언어**: TypeScript 5
 - **스타일링**: Tailwind CSS 4
 - **빌드**: Vite 7
-- **오디오**: DBOPL OPL2 에뮬레이터 + Web Audio API + Nuked OPL3
+- **오디오**: Nuked-OPL3 에뮬레이터 (WASM) + Web Audio API
 - **배포**: Docker 멀티 스테이지 빌드
 
 ## 시작하기
@@ -119,7 +119,9 @@ imsplay/
 │   └── routes/                      # React Router 라우트
 │       └── home.tsx                # 메인 페이지 (SSR)
 ├── public/                          # 정적 파일
-│   ├── alib.js                     # DBOPL OPL2 에뮬레이터
+│   ├── nuked-opl3.wasm             # Nuked-OPL3 에뮬레이터 (WASM)
+│   ├── nuked-opl3.js               # Nuked-OPL3 로더
+│   ├── nuked-wasm.js               # OPL 래퍼
 │   ├── STANDARD.BNK                # 메인 악기 뱅크
 │   ├── *.IMS                       # IMS 음악 파일 (47개)
 │   ├── *.ROL                       # ROL 음악 파일 (6개)
@@ -165,9 +167,9 @@ Player.tick() → 음악 이벤트 처리
   ↓
 Player.generateSamples() → 샘플 생성 요청
   ↓
-OPLEngine.generate() → DBOPL 호출
+OPLEngine.generate() → Nuked-OPL3 호출
   ↓
-DBOPL → Int16Array 샘플 생성
+Nuked-OPL3 (WASM) → Int16Array 샘플 생성 (49716Hz)
   ↓
 ScriptProcessorNode → Float32 변환
   ↓
@@ -189,7 +191,7 @@ IMS 파일의 조합형 인코딩 한글 제목을 React Router v7의 SSR loader
 ### 성능 최적화
 
 - UI 업데이트: 10fps (100ms 인터벌)
-- 오디오 생성: 최대 512샘플 청크 (DBOPL 제한)
+- 오디오 생성: Nuked-OPL3 네이티브 샘플레이트 (49716Hz)
 - 가상 스크롤링: 대용량 플레이리스트 처리
 
 ## 라이선스
