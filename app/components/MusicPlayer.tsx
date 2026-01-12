@@ -257,7 +257,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const [repeatMode, setRepeatMode] = useState<RepeatMode>('all');
   const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [autoPlay, setAutoPlay] = useState<boolean>(false);
-  const [masterVolume, setMasterVolumeState] = useState<number>(50);
+  const [masterVolume, setMasterVolumeState] = useState<number>(100);
   const [shouldAutoScroll, setShouldAutoScroll] = useState<boolean>(false);
 
   // 드래그 앤 드롭 상태
@@ -754,7 +754,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
    */
   useEffect(() => {
     if (state && setMasterVolume) {
-      setMasterVolume(masterVolume);
+      setMasterVolume(masterVolume / 100);
     }
   }, [state, currentMusicFile, setMasterVolume, masterVolume]);
 
@@ -1395,7 +1395,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 label="마스터 볼륨"
                 value={masterVolume}
                 min={0}
-                max={100}
+                max={200}
                 onChange={(vol) => {
                   setMasterVolumeState(vol);
                   setMasterVolume(vol / 100);
@@ -1403,8 +1403,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
                 unit="%"
                 showReset={true}
                 onReset={() => {
-                  setMasterVolumeState(50);
-                  setMasterVolume(0.5);
+                  setMasterVolumeState(100);
+                  setMasterVolume(1.0);
                 }}
               />
             </div>
