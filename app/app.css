@@ -70,59 +70,59 @@
   --lyrics-normal: #C0C0C0;
 }
 
-/* Dark Mode (VSCode Monokai Theme) */
+/* Dark Mode (Anysphere Dark Theme) */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* VSCode Monokai palette */
-    --color-black: #1e1f1c;
-    --color-maroon: #f92672;
-    --color-green: #a6e22e;
-    --color-olive: #fd971f;
-    --color-navy: #414339;
-    --color-purple: #ae81ff;
-    --color-teal: #272822;
-    --color-silver: #88846f;
-    --color-gray: #414339;
-    --color-red: #f92672;
-    --color-lime: #a6e22e;
-    --color-yellow: #e6db74;
-    --color-blue: #414339;
-    --color-fuchsia: #49483e;
-    --color-aqua: #66d9ef;
-    --color-white: #f8f8f2;
+    /* Anysphere Dark palette */
+    --color-black: #0d0d12;
+    --color-maroon: #e06080;
+    --color-green: #3ddc97;
+    --color-olive: #e0a050;
+    --color-navy: #1a1a24;
+    --color-purple: #a78bfa;
+    --color-teal: #14141c;
+    --color-silver: #6b7280;
+    --color-gray: #252530;
+    --color-red: #f87171;
+    --color-lime: #4ade80;
+    --color-yellow: #fbbf24;
+    --color-blue: #2d2d3a;
+    --color-fuchsia: #1e1e2a;
+    --color-aqua: #38bdf8;
+    --color-white: #f4f4f5;
 
     /* UI colors */
-    --bg-main: #272822;
-    --text-main: #f8f8f2;
-    --text-emphasis: #ae81ff;
-    --text-disabled: #75715e;
+    --bg-main: #14141c;
+    --text-main: #f4f4f5;
+    --text-emphasis: #a78bfa;
+    --text-disabled: #52525b;
 
     /* 3D borders */
-    --border-highlight: #5a5a4a;
-    --border-light: #5a5a4a;
-    --border-shadow: #1e1f1c;
-    --border-dark: #1e1f1c;
+    --border-highlight: #3f3f50;
+    --border-light: #3f3f50;
+    --border-shadow: #0d0d12;
+    --border-dark: #0d0d12;
 
     /* Selection */
-    --bg-select: #49483e;
-    --text-select: #f8f8f2;
+    --bg-select: #2d2d3a;
+    --text-select: #f4f4f5;
 
     /* Meters */
-    --meter-low: #a6e22e;
-    --meter-mid: #e6db74;
-    --meter-high: #fd971f;
+    --meter-low: #3ddc97;
+    --meter-mid: #fbbf24;
+    --meter-high: #f87171;
 
     /* Piano */
-    --piano-white-key: #88846f;
-    --piano-white-key-active: #e8e8e8;
-    --piano-white-key-border: #5a5a4a;
-    --piano-black-key: #272822;
-    --piano-black-key-active: #e8e8e8;
-    --piano-black-key-border: #1e1f1c;
+    --piano-white-key: #52525b;
+    --piano-white-key-active: #f4f4f5;
+    --piano-white-key-border: #3f3f50;
+    --piano-black-key: #14141c;
+    --piano-black-key-active: #f4f4f5;
+    --piano-black-key-border: #0d0d12;
 
     /* Lyrics */
-    --lyrics-highlight: #a6e22e;
-    --lyrics-normal: #75715e;
+    --lyrics-highlight: #3ddc97;
+    --lyrics-normal: #52525b;
   }
 }
 
@@ -882,7 +882,7 @@ body {
 
 /* ==========================================
    Dark Mode Overrides (파일 끝에 위치해야 함)
-   VSCode Monokai Theme
+   Anysphere Dark Theme
    ========================================== */
 @media (prefers-color-scheme: dark) {
   /* 리스트/입력 배경 */
@@ -890,66 +890,66 @@ body {
   .inset,
   .inset-deep,
   .dos-progress-bar {
-    background: #3e3d32;
+    background: #1e1e2a;
   }
 
   /* 버튼 스타일 */
   .dos-button {
-    color: #f8f8f2;
-    background: #414339;
+    color: #f4f4f5;
+    background: #252530;
   }
 
   .dos-button:hover:not(:disabled) {
-    background: #49483e;
+    background: #3f3f50;
   }
 
   .dos-button:disabled {
-    color: #75715e;
+    color: #52525b;
   }
 
   /* 슬라이더 트랙 */
   .dos-slider-input::-webkit-slider-runnable-track {
-    background: #3e3d32;
+    background: #1e1e2a;
   }
   .dos-slider-input::-moz-range-track {
-    background: #3e3d32;
+    background: #1e1e2a;
   }
 
   /* 슬라이더 thumb */
   .dos-slider-input::-webkit-slider-thumb {
-    background: #75715e;
+    background: #a78bfa;
   }
   .dos-slider-input::-moz-range-thumb {
-    background: #75715e;
+    background: #a78bfa;
   }
 
   /* 리셋 버튼 */
   .dos-reset-button {
-    background: #414339;
-    color: #f8f8f2;
+    background: #252530;
+    color: #f4f4f5;
   }
   .dos-reset-button:hover {
-    background: #49483e;
+    background: #3f3f50;
   }
 
   /* 상태바 테두리 */
   .dos-status-bar {
-    border-top-color: #5a5a4a;
-    border-left-color: #5a5a4a;
+    border-top-color: #3f3f50;
+    border-left-color: #3f3f50;
   }
 
   /* 뱃지 색상 */
   .dos-badge-ims {
-    background: #66d9ef;
-    color: #1e1f1c;
+    background: #38bdf8;
+    color: #0d0d12;
   }
   .dos-badge-rol {
-    background: #a6e22e;
-    color: #1e1f1c;
+    background: #3ddc97;
+    color: #0d0d12;
   }
   .dos-badge-vgm {
-    background: #ae81ff;
-    color: #1e1f1c;
+    background: #a78bfa;
+    color: #0d0d12;
   }
 
   /* 스크롤바 */
@@ -958,27 +958,27 @@ body {
     height: 12px;
   }
   ::-webkit-scrollbar-track {
-    background: #3e3d32;
+    background: #1e1e2a;
   }
   ::-webkit-scrollbar-thumb {
-    background: #75715e;
-    border: 1px solid #272822;
+    background: #3f3f50;
+    border: 1px solid #14141c;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #88846f;
+    background: #52525b;
   }
   ::-webkit-scrollbar-corner {
-    background: #3e3d32;
+    background: #1e1e2a;
   }
 
   /* Firefox 스크롤바 */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #75715e #3e3d32;
+    scrollbar-color: #3f3f50 #1e1e2a;
   }
 
   /* 페이지 배경 (body) */
   body {
-    background: #141411;
+    background: #0a0a0f;
   }
 }
