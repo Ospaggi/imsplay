@@ -225,7 +225,7 @@ export function useAdPlugPlayer({
    * 오디오 프로세서 초기화
    */
   const initializeAudioProcessor = useCallback((audioContext: AudioContext) => {
-    const bufferSize = 8192; // 약 160ms 간격으로 처리
+    const bufferSize = 2048; // 약 40ms 간격으로 처리
     const processor = audioContext.createScriptProcessor(bufferSize, 0, 2);
 
     processor.onaudioprocess = (e) => {
