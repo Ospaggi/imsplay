@@ -121,9 +121,9 @@ export default function SpectrumVisualizer({
         color = colors.peak;
       } else if (isActive) {
         const ratio = segIndex / segmentCount;
-        if (ratio >= 0.8) {
+        if (ratio >= 2 / 3) {
           color = colors.high;
-        } else if (ratio >= 0.6) {
+        } else if (ratio >= 1 / 3) {
           color = colors.mid;
         } else {
           color = colors.low;
