@@ -15,7 +15,7 @@
 #include "binstr.h"
 
 // Audio buffer size (samples per channel)
-static const int AUDIO_BUFFER_SIZE = 8192;
+static const int AUDIO_BUFFER_SIZE = 2048;
 
 // Global state
 static CNemuopl* g_opl = nullptr;
