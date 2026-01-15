@@ -54,11 +54,11 @@ export default function SpectrumVisualizer({
     high: string;
     peak: string;
     barBg: string;
-    barShadow: string;
-    barHighlight: string;
+    borderShadow: string;
+    borderHighlight: string;
   }>({
     inactive: "#808080", low: "#4a5568", mid: "#6b7a8f", high: "#8fa0b8", peak: "#00FF00",
-    barBg: "#1e1e2a", barShadow: "#0d0d12", barHighlight: "#3f3f50"
+    barBg: "#1e1e2a", borderShadow: "#808080", borderHighlight: "#FFFFFF"
   });
 
   // 색상 업데이트
@@ -71,8 +71,8 @@ export default function SpectrumVisualizer({
       high: getCSSColor(containerRef.current, "--meter-high"),
       peak: getCSSColor(containerRef.current, "--meter-peak"),
       barBg: getCSSColor(containerRef.current, "--spectrum-bar-bg"),
-      barShadow: getCSSColor(containerRef.current, "--spectrum-bar-shadow"),
-      barHighlight: getCSSColor(containerRef.current, "--spectrum-bar-highlight"),
+      borderShadow: getCSSColor(containerRef.current, "--border-shadow"),
+      borderHighlight: getCSSColor(containerRef.current, "--border-highlight"),
     };
   };
 
@@ -113,9 +113,9 @@ export default function SpectrumVisualizer({
     ctx.clearRect(0, 0, width, height);
 
     const padding = 8;
-    const gap = 4;
+    const gap = 2;
     const borderWidth = 2;
-    const innerPadding = 3;
+    const innerPadding = 0;
     const segmentGap = 1;
 
     const availableWidth = width - padding * 2;
@@ -136,12 +136,12 @@ export default function SpectrumVisualizer({
 
       // 3D inset 바 배경 그리기
       // 상단/좌측 테두리 (어두운 색 - 그림자)
-      ctx.fillStyle = colors.barShadow;
+      ctx.fillStyle = colors.borderShadow;
       ctx.fillRect(barX, barY, barWidth, borderWidth); // 상단
       ctx.fillRect(barX, barY, borderWidth, availableHeight); // 좌측
 
       // 하단/우측 테두리 (밝은 색 - 하이라이트)
-      ctx.fillStyle = colors.barHighlight;
+      ctx.fillStyle = colors.borderHighlight;
       ctx.fillRect(barX, barY + availableHeight - borderWidth, barWidth, borderWidth); // 하단
       ctx.fillRect(barX + barWidth - borderWidth, barY, borderWidth, availableHeight); // 우측
 

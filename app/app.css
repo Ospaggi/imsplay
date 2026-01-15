@@ -62,10 +62,8 @@
   --meter-high: #8fa0b8;
   --meter-peak: #00FF00;
 
-  /* Spectrum bar inset (3D 효과) */
+  /* Spectrum bar (내부만 다크모드 색상) */
   --spectrum-bar-bg: #1e1e2a;
-  --spectrum-bar-shadow: #0d0d12;
-  --spectrum-bar-highlight: #3f3f50;
   --segment-inactive: rgba(255, 255, 255, 0.05);
 
   /* Piano */
@@ -128,10 +126,8 @@
     --meter-high: #8fa0b8;
     --meter-peak: #00FF00;
 
-    /* Spectrum bar inset (3D 효과) - 라이트모드와 동일 */
+    /* Spectrum bar (내부만 다크모드 색상) - 라이트모드와 동일 */
     --spectrum-bar-bg: #1e1e2a;
-    --spectrum-bar-shadow: #0d0d12;
-    --spectrum-bar-highlight: #3f3f50;
     --segment-inactive: rgba(255, 255, 255, 0.05);
 
     /* Piano */
