@@ -428,6 +428,8 @@ void emu_rewind()
         g_player->rewind(-1);
         g_currentPosition = 0;
         g_currentTick = 0;
+        g_sampleAccumulator = 0.0f;
+        g_totalSamplesGenerated = 0;
     }
 }
 
