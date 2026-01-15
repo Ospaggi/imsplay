@@ -60,7 +60,7 @@
   --meter-low: #4a5568;
   --meter-mid: #6b7a8f;
   --meter-high: #8fa0b8;
-  --meter-peak: #00FF00;
+  --meter-peak: #FFFF00;
 
   /* Spectrum bar (내부만 다크모드 색상) */
   --spectrum-bar-bg: #1e1e2a;
@@ -124,7 +124,7 @@
     --meter-low: #4a5568;
     --meter-mid: #6b7a8f;
     --meter-high: #8fa0b8;
-    --meter-peak: #00FF00;
+    --meter-peak: #FFFF00;
 
     /* Spectrum bar (내부만 다크모드 색상) - 라이트모드와 동일 */
     --spectrum-bar-bg: #1e1e2a;
