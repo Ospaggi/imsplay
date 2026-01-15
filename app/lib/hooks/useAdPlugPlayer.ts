@@ -49,6 +49,7 @@ interface UseAdPlugPlayerReturn {
   setLoopEnabled: (enabled: boolean) => void;
 
   checkPlayerReady: () => boolean;
+  refreshState: () => void;
 }
 
 const SAMPLE_RATE = 49716; // OPL2 native sample rate
@@ -77,8 +78,6 @@ export function useAdPlugPlayer({
   const gainNodeRef = useRef<GainNode | null>(null);
   const analyserNodeRef = useRef<AnalyserNode | null>(null);
   const mediaStreamDestRef = useRef<MediaStreamAudioDestinationNode | null>(null);
-  const uiUpdateFrameRef = useRef<number | null>(null);
-  const lastUIUpdateTimeRef = useRef<number>(0);
   const fileNameRef = useRef<string>("");
   const isVgmFileRef = useRef<boolean>(false); // VGM 파일 여부 (볼륨 1.5배)
 
@@ -226,7 +225,7 @@ export function useAdPlugPlayer({
    * 오디오 프로세서 초기화
    */
   const initializeAudioProcessor = useCallback((audioContext: AudioContext) => {
-    const bufferSize = 4096; // 약 80ms 간격으로 처리
+    const bufferSize = 8192; // 약 160ms 간격으로 처리
     const processor = audioContext.createScriptProcessor(bufferSize, 0, 2);
 
     processor.onaudioprocess = (e) => {
@@ -311,44 +310,21 @@ export function useAdPlugPlayer({
   }, [onTrackEnd, audioElementRef]);
 
   /**
-   * UI 업데이트 루프 시작 (requestAnimationFrame 사용)
+   * 상태 갱신 (외부에서 호출)
    */
-  const startUIUpdateLoop = useCallback(() => {
-    if (uiUpdateFrameRef.current !== null) return; // 이미 실행 중
+  const refreshState = useCallback(() => {
+    if (playerRef.current) {
+      const playerState = playerRef.current.getState();
+      const currentTick = playerRef.current.getCurrentTick();
 
-    const updateUI = (timestamp: number) => {
-      // 30fps로 제한 (~33ms 간격)
-      if (timestamp - lastUIUpdateTimeRef.current >= 33) {
-        lastUIUpdateTimeRef.current = timestamp;
-
-        if (playerRef.current) {
-          const playerState = playerRef.current.getState();
-          const currentTick = playerRef.current.getCurrentTick();
-
-          setState(prev => prev ? {
-            ...prev,
-            isPlaying: isPlayingRef.current,
-            isPaused: isPausedRef.current,
-            currentByte: playerState.currentPosition,
-            totalSize: playerState.maxPosition || prev.totalSize,
-            currentTick: currentTick,
-          } : null);
-        }
-      }
-
-      uiUpdateFrameRef.current = requestAnimationFrame(updateUI);
-    };
-
-    uiUpdateFrameRef.current = requestAnimationFrame(updateUI);
-  }, []);
-
-  /**
-   * UI 업데이트 루프 중지
-   */
-  const stopUIUpdateLoop = useCallback(() => {
-    if (uiUpdateFrameRef.current !== null) {
-      cancelAnimationFrame(uiUpdateFrameRef.current);
-      uiUpdateFrameRef.current = null;
+      setState(prev => prev ? {
+        ...prev,
+        isPlaying: isPlayingRef.current,
+        isPaused: isPausedRef.current,
+        currentByte: playerState.currentPosition,
+        totalSize: playerState.maxPosition || prev.totalSize,
+        currentTick: currentTick,
+      } : null);
     }
   }, []);
 
@@ -356,8 +332,6 @@ export function useAdPlugPlayer({
    * 정리 함수
    */
   const cleanup = useCallback(() => {
-    stopUIUpdateLoop();
-
     if (mediaStreamDestRef.current) {
       mediaStreamDestRef.current.disconnect();
       mediaStreamDestRef.current = null;
@@ -378,7 +352,7 @@ export function useAdPlugPlayer({
       playerRef.current.destroy();
       playerRef.current = null;
     }
-  }, [stopUIUpdateLoop]);
+  }, []);
 
   /**
    * AudioContext resume 시도
@@ -463,9 +437,6 @@ export function useAdPlugPlayer({
     isPausedRef.current = false;
     playerRef.current.setIsPlaying(true);
 
-    // UI 업데이트 루프 시작 (requestAnimationFrame)
-    startUIUpdateLoop();
-
     // 즉시 상태 업데이트
     const playerState = playerRef.current.getState();
     setState(prev => prev ? {
@@ -474,7 +445,7 @@ export function useAdPlugPlayer({
       isPaused: false,
       currentByte: playerState.currentPosition,
     } : null);
-  }, [ensureAudioContextReady, audioElementRef, getAudioContext, startUIUpdateLoop]);
+  }, [ensureAudioContextReady, audioElementRef, getAudioContext]);
 
   /**
    * 일시정지
@@ -489,14 +460,12 @@ export function useAdPlugPlayer({
       audioElementRef.current.pause();
     }
 
-    stopUIUpdateLoop();
-
     setState(prev => prev ? {
       ...prev,
       isPlaying: false,
       isPaused: true,
     } : null);
-  }, [audioElementRef, stopUIUpdateLoop]);
+  }, [audioElementRef]);
 
   /**
    * 정지
@@ -513,15 +482,13 @@ export function useAdPlugPlayer({
       audioElementRef.current.currentTime = 0;
     }
 
-    stopUIUpdateLoop();
-
     setState(prev => prev ? {
       ...prev,
       isPlaying: false,
       isPaused: false,
       currentByte: 0,
     } : null);
-  }, [audioElementRef, stopUIUpdateLoop]);
+  }, [audioElementRef]);
 
   /**
    * 볼륨 설정 (AdPlug에서는 지원하지 않음, 호환성용)
@@ -569,7 +536,6 @@ export function useAdPlugPlayer({
 
       if (document.hidden) {
         wasPlayingBeforeBackgroundRef.current = isPlayingRef.current;
-        stopUIUpdateLoop();
       } else {
         setNeedsAudioRecovery(true);
       }
@@ -579,7 +545,7 @@ export function useAdPlugPlayer({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [stopUIUpdateLoop]);
+  }, []);
 
   /**
    * 백그라운드 복귀 시 오디오 복구
@@ -598,7 +564,7 @@ export function useAdPlugPlayer({
         return;
       }
 
-      // 재생 중이었으면 UI 업데이트 루프 재시작
+      // 재생 중이었으면 상태 복구
       if (wasPlayingBeforeBackgroundRef.current) {
         if (audioElementRef?.current && audioElementRef.current.paused) {
           try {
@@ -610,13 +576,11 @@ export function useAdPlugPlayer({
 
         isPlayingRef.current = true;
         isPausedRef.current = false;
-
-        startUIUpdateLoop();
       }
     };
 
     recoverAudio();
-  }, [needsAudioRecovery, ensureAudioContextReady, audioElementRef, getAudioContext, startUIUpdateLoop]);
+  }, [needsAudioRecovery, ensureAudioContextReady, audioElementRef, getAudioContext]);
 
   return {
     state,
@@ -632,5 +596,6 @@ export function useAdPlugPlayer({
     setMasterVolume,
     setLoopEnabled,
     checkPlayerReady,
+    refreshState,
   };
 }

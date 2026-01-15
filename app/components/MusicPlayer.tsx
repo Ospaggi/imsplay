@@ -259,6 +259,9 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   const [masterVolume, setMasterVolumeState] = useState<number>(100);
   const [shouldAutoScroll, setShouldAutoScroll] = useState<boolean>(false);
 
+  // UI 갱신 트리거 (스펙트럼 시각화 + 상태 갱신)
+  const [updateTrigger, setUpdateTrigger] = useState<number>(0);
+
   // 드래그 앤 드롭 상태
   const [isDragging, setIsDragging] = useState(false);
 
@@ -310,7 +313,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     audioElementRef,
   });
 
-  const { state, error, isPlayerReady, analyserNode, play, pause, stop, setMasterVolume, checkPlayerReady } = player;
+  const { state, error, isPlayerReady, analyserNode, play, pause, stop, setMasterVolume, checkPlayerReady, refreshState } = player;
 
   // Format-aware ready state (단일 플레이어 사용으로 간소화)
   const isCurrentPlayerReady = useMemo(() => {
@@ -930,6 +933,20 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     };
   }, [state?.isPlaying, state?.isPaused, state?.currentByte, state?.totalSize, currentMusicFile, play, pause, stop, playPreviousTrack, playNextTrack, isUserFolder, userMusicFileTitles, musicSamples, playingTrackIndex, format, userFolderName]);
 
+  /**
+   * 통합 UI 갱신 인터벌 (50ms)
+   * - 플레이어 상태 갱신 (재생 위치, 틱 등)
+   * - 스펙트럼 시각화 트리거
+   */
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      refreshState();
+      setUpdateTrigger(prev => prev + 1);
+    }, 50);
+
+    return () => clearInterval(intervalId);
+  }, [refreshState]);
+
   // progress bar
   const progress = state ? (state.currentByte / state.totalSize) * 100 : 0;
 
@@ -1441,7 +1458,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
           </DosPanel>
 
           {/* 스펙트럼 시각화 */}
-          <SpectrumVisualizer analyserNode={analyserNode} />
+          <SpectrumVisualizer analyserNode={analyserNode} updateTrigger={updateTrigger} />
 
           {/* 재생 진행률 및 볼륨 */}
           <DosPanel style={{ flexShrink: 0 }}>
