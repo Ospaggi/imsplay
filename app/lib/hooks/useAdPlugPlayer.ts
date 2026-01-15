@@ -293,10 +293,8 @@ export function useAdPlugPlayer({
         trackEndCallbackFiredRef.current = false;
 
         // 오디오 프로세서 초기화 (기존 워크렛이 있으면 재사용)
-        if (workletNodeRef.current) {
-          // 기존 워크렛 버퍼만 클리어
-          workletNodeRef.current.port.postMessage({ type: 'clear' });
-        } else {
+        // 버퍼 클리어는 hardReset()에서 처리하므로 여기서는 하지 않음
+        if (!workletNodeRef.current) {
           // 최초 로드 시에만 새로 생성
           await initializeAudioProcessor(audioContext);
         }
