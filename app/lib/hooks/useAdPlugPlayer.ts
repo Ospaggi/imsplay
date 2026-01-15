@@ -81,6 +81,10 @@ export function useAdPlugPlayer({
   const fileNameRef = useRef<string>("");
   const isVgmFileRef = useRef<boolean>(false); // VGM 파일 여부 (볼륨 1.5배)
 
+  // 샘플 버퍼 큐 (WASM에서 생성된 샘플을 버퍼링)
+  const sampleBufferRef = useRef<Int16Array>(new Int16Array(0));
+  const sampleBufferOffsetRef = useRef<number>(0);
+
   // 재생 상태
   const isPlayingRef = useRef<boolean>(false);
   const isPausedRef = useRef<boolean>(false);
@@ -174,6 +178,10 @@ export function useAdPlugPlayer({
         isPlayingRef.current = false;
         isPausedRef.current = false;
 
+        // 샘플 버퍼 리셋
+        sampleBufferRef.current = new Int16Array(0);
+        sampleBufferOffsetRef.current = 0;
+
         // 오디오 프로세서 초기화
         if (processorRef.current) {
           processorRef.current.disconnect();
@@ -238,28 +246,56 @@ export function useAdPlugPlayer({
       const outputL = outputBuffer.getChannelData(0);
       const outputR = outputBuffer.getChannelData(1);
 
-      // AdPlug에서 샘플 생성
-      const { samples, finished } = player.generateSamples();
+      const framesNeeded = outputBuffer.length;
+      const samplesNeeded = framesNeeded * 2; // 스테레오
+      let outputOffset = 0;
+      let trackFinished = false;
 
-      if (samples.length > 0) {
-        // 스테레오 샘플을 Float32로 변환
-        const numFrames = Math.min(samples.length / 2, outputBuffer.length);
-        for (let i = 0; i < numFrames; i++) {
-          outputL[i] = samples[i * 2] / 32768.0;
-          outputR[i] = samples[i * 2 + 1] / 32768.0;
-        }
-        // 남은 부분은 0으로 채움
-        for (let i = numFrames; i < outputBuffer.length; i++) {
-          outputL[i] = 0;
-          outputR[i] = 0;
+      // 출력 버퍼를 채울 때까지 반복
+      while (outputOffset < framesNeeded) {
+        // 버퍼에 남은 샘플 확인
+        const bufferRemaining = sampleBufferRef.current.length - sampleBufferOffsetRef.current;
+
+        if (bufferRemaining > 0) {
+          // 버퍼에서 샘플 복사
+          const framesToCopy = Math.min(bufferRemaining / 2, framesNeeded - outputOffset);
+          for (let i = 0; i < framesToCopy; i++) {
+            const srcIdx = sampleBufferOffsetRef.current + i * 2;
+            outputL[outputOffset + i] = sampleBufferRef.current[srcIdx] / 32768.0;
+            outputR[outputOffset + i] = sampleBufferRef.current[srcIdx + 1] / 32768.0;
+          }
+          outputOffset += framesToCopy;
+          sampleBufferOffsetRef.current += framesToCopy * 2;
+        } else {
+          // 버퍼가 비었으면 WASM에서 새 샘플 생성
+          const { samples, finished } = player.generateSamples();
+
+          if (samples.length > 0) {
+            // 새 버퍼 설정
+            sampleBufferRef.current = samples;
+            sampleBufferOffsetRef.current = 0;
+          } else {
+            // 샘플이 없으면 나머지를 0으로 채움
+            for (let i = outputOffset; i < framesNeeded; i++) {
+              outputL[i] = 0;
+              outputR[i] = 0;
+            }
+            break;
+          }
+
+          if (finished) {
+            trackFinished = true;
+          }
         }
       }
 
-      // 트랙 종료 감지
-      if (finished) {
+      // 트랙 종료 처리
+      if (trackFinished) {
         if (loopEnabledRef.current) {
           // 루프 모드: 처음부터 다시 재생
           player.rewind();
+          sampleBufferRef.current = new Int16Array(0);
+          sampleBufferOffsetRef.current = 0;
           trackEndCallbackFiredRef.current = false;
         } else {
           // 일반 모드: 트랙 종료 콜백
@@ -476,6 +512,10 @@ export function useAdPlugPlayer({
     isPlayingRef.current = false;
     isPausedRef.current = false;
     playerRef.current.rewind();
+
+    // 샘플 버퍼 리셋
+    sampleBufferRef.current = new Int16Array(0);
+    sampleBufferOffsetRef.current = 0;
 
     if (audioElementRef?.current) {
       audioElementRef.current.pause();
