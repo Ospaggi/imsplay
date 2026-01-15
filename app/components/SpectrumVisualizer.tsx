@@ -119,10 +119,16 @@ export default function SpectrumVisualizer({
       const bar = barData[i];
       const x = padding + i * (barWidth + gap);
 
+      // 피크 세그먼트 위치 계산 (항상 바 값 바로 위, 최소 0)
+      const peakSegIndex = Math.min(
+        Math.floor((bar.peak * segmentCount) / 100),
+        segmentCount - 1
+      );
+
       for (let segIndex = 0; segIndex < segmentCount; segIndex++) {
         const threshold = ((segIndex + 1) / segmentCount) * 100;
         const isActive = bar.value >= threshold;
-        const isPeak = !isActive && bar.peak >= threshold && bar.peak < threshold + (100 / segmentCount);
+        const isPeak = segIndex === peakSegIndex;
 
         // 색상 결정
         let color = colors.inactive;
