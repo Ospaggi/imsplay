@@ -490,7 +490,7 @@ export function useAdPlugPlayer({
    * - UI 상태 리셋
    */
   const hardReset = useCallback(async () => {
-    // 재생 상태 즉시 중지
+    // 재생 상태 즉시 중지 (needSamples 요청 무시)
     isPlayingRef.current = false;
     isPausedRef.current = false;
 
@@ -514,12 +514,15 @@ export function useAdPlugPlayer({
         };
         workletNodeRef.current!.port.addEventListener('message', handler);
         workletNodeRef.current!.port.postMessage({ type: 'clear' });
-        // 타임아웃 (50ms 후에도 응답 없으면 진행)
+        // 타임아웃 (100ms 후에도 응답 없으면 진행)
         setTimeout(() => {
           workletNodeRef.current?.port.removeEventListener('message', handler);
           resolve();
-        }, 50);
+        }, 100);
       });
+
+      // 오디오 파이프라인이 완전히 비워질 때까지 대기
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     // UI 상태 즉시 리셋
@@ -639,8 +642,9 @@ export function useAdPlugPlayer({
           }, 100);
         });
 
-        // 워크렛이 클리어를 완전히 처리할 시간 확보 (오디오 스레드 동기화)
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // 오디오 파이프라인이 완전히 비워질 때까지 대기 (새 재생과 동일한 조건)
+        // AudioWorklet process()는 ~2.9ms 간격으로 호출됨, 50ms면 충분
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
 
       // 딜레이 중 트랙이 변경되었을 수 있음
@@ -648,9 +652,11 @@ export function useAdPlugPlayer({
         return;
       }
 
-      // 시간 추적 리셋
+      // 시간 추적 완전 리셋 (새 재생과 동일한 초기 상태)
       playbackStartTimeRef.current = 0;
       totalSamplesSentRef.current = 0;
+      trackEndCallbackFiredRef.current = false;
+
       // 플레이어 되감기 (처음부터 시작)
       playerRef.current.rewind();
 
@@ -662,12 +668,16 @@ export function useAdPlugPlayer({
       } : null);
     }
 
+    // 샘플 생성 전에 상태 설정 (needSamples 요청 방지)
     isPlayingRef.current = true;
     isPausedRef.current = false;
     playerRef.current.setIsPlaying(true);
 
-    // 샘플 생성 시작 (버퍼 채운 후 시간 측정 시작)
+    // 초기 버퍼링: 정확히 4배치 생성 (새 재생과 동일)
+    // 이 시점에서 worklet 버퍼는 비어있음
     startSampleGeneration();
+
+    // 버퍼링 완료 후 시간 측정 시작 (ISS 동기화의 기준점)
     playbackStartTimeRef.current = performance.now();
 
     // 즉시 상태 업데이트
