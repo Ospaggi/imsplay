@@ -52,7 +52,7 @@ interface UseAdPlugPlayerReturn {
   refreshState: () => void;
 }
 
-const SAMPLE_RATE = 49716; // OPL2 native sample rate
+const SAMPLE_RATE = 44100; // Standard audio sample rate
 
 /**
  * AdPlug 통합 플레이어 React 훅
@@ -95,8 +95,9 @@ export function useAdPlugPlayer({
   const wasPlayingBeforeBackgroundRef = useRef<boolean>(false);
   const [needsAudioRecovery, setNeedsAudioRecovery] = useState<boolean>(false);
 
-  // 샘플 생성 인터벌
-  const sampleGenerationIntervalRef = useRef<number | null>(null);
+  // 틱 동기화를 위한 시간 추적
+  const playbackStartTimeRef = useRef<number>(0);
+  const totalSamplesSentRef = useRef<number>(0); // samplesPerTick 계산용
 
   // AudioContext 접근 헬퍼
   const getAudioContext = useCallback(() => {
@@ -129,6 +130,9 @@ export function useAdPlugPlayer({
         floatSamples[i] = samples[i] / 32768.0;
       }
 
+      // 전송된 샘플 수 추적 (스테레오이므로 /2)
+      totalSamplesSentRef.current += samples.length / 2;
+
       // 워크렛으로 전송
       workletNodeRef.current.port.postMessage({
         type: 'samples',
@@ -140,6 +144,8 @@ export function useAdPlugPlayer({
     if (finished) {
       if (loopEnabledRef.current) {
         player.rewind();
+        totalSamplesSentRef.current = 0;
+        playbackStartTimeRef.current = performance.now();
         trackEndCallbackFiredRef.current = false;
       } else {
         isPlayingRef.current = false;
@@ -152,35 +158,22 @@ export function useAdPlugPlayer({
   }, [onTrackEnd]);
 
   /**
-   * 샘플 생성 루프 시작
+   * 샘플 생성 시작 (초기 버퍼 채우기)
+   * 이후 샘플 생성은 워크렛의 needSamples 요청에 의해 처리됨
    */
   const startSampleGeneration = useCallback(() => {
-    if (sampleGenerationIntervalRef.current) {
-      return;
+    // 초기 버퍼 채우기 (4번 - 약 660ms 분량)
+    for (let i = 0; i < 4; i++) {
+      generateAndSendSamples();
     }
-
-    // 초기 버퍼 채우기 (3번 - 약 500ms 분량)
-    generateAndSendSamples();
-    generateAndSendSamples();
-    generateAndSendSamples();
-
-    // 8192 samples at 49716 Hz = ~165ms
-    // 150ms마다 생성하여 버퍼 유지
-    sampleGenerationIntervalRef.current = window.setInterval(() => {
-      if (isPlayingRef.current) {
-        generateAndSendSamples();
-      }
-    }, 150);
   }, [generateAndSendSamples]);
 
   /**
-   * 샘플 생성 루프 중지
+   * 샘플 생성 중지 (워크렛 요청 무시를 위해 isPlayingRef만 확인)
    */
   const stopSampleGeneration = useCallback(() => {
-    if (sampleGenerationIntervalRef.current) {
-      clearInterval(sampleGenerationIntervalRef.current);
-      sampleGenerationIntervalRef.current = null;
-    }
+    // 워크렛 기반이므로 별도 정리 필요 없음
+    // isPlayingRef가 false가 되면 needSamples 요청이 무시됨
   }, []);
 
   /**
@@ -314,10 +307,15 @@ export function useAdPlugPlayer({
       outputChannelCount: [2],
     });
 
-    // 워크렛에서 샘플 요청 시 생성
+    // 워크렛에서 샘플 요청 수신
     workletNode.port.onmessage = (event) => {
       if (event.data.type === 'needSamples' && isPlayingRef.current) {
-        generateAndSendSamples();
+        // 버퍼가 부족하면 여러 번 생성하여 빠르게 채움
+        const frames = event.data.frames || 0;
+        const samplesToGenerate = Math.max(1, Math.ceil((16384 - frames) / 8192));
+        for (let i = 0; i < samplesToGenerate; i++) {
+          generateAndSendSamples();
+        }
       }
     };
 
@@ -357,12 +355,39 @@ export function useAdPlugPlayer({
   }, [audioElementRef, generateAndSendSamples]);
 
   /**
+   * 실제 재생된 틱 계산 (경과 시간 기반)
+   */
+  const getPlayedTick = useCallback(() => {
+    if (!playerRef.current || !isPlayingRef.current) return 0;
+    if (playbackStartTimeRef.current <= 0) return 0;
+
+    const generatedTick = playerRef.current.getCurrentTick();
+    const totalSent = totalSamplesSentRef.current;
+
+    if (totalSent <= 0 || generatedTick <= 0) return 0;
+
+    // 실제 샘플당 틱 계산 (곡마다 다름)
+    const samplesPerTick = totalSent / generatedTick;
+
+    // 경과 시간으로 재생된 샘플 수 계산
+    // 초기 버퍼 지연 고려 (4배치 * 8192 샘플 = ~743ms at 44100Hz)
+    const bufferLatencyMs = (4 * 8192 / SAMPLE_RATE) * 1000;
+    const elapsedMs = performance.now() - playbackStartTimeRef.current - bufferLatencyMs;
+    if (elapsedMs < 0) return 0;
+
+    const playedSamples = (elapsedMs / 1000) * SAMPLE_RATE;
+    const playedTick = Math.floor(playedSamples / samplesPerTick);
+
+    return playedTick;
+  }, []);
+
+  /**
    * 상태 갱신 (외부에서 호출)
    */
   const refreshState = useCallback(() => {
     if (playerRef.current) {
       const playerState = playerRef.current.getState();
-      const currentTick = playerRef.current.getCurrentTick();
+      const currentTick = getPlayedTick();
 
       setState(prev => prev ? {
         ...prev,
@@ -373,7 +398,7 @@ export function useAdPlugPlayer({
         currentTick: currentTick,
       } : null);
     }
-  }, []);
+  }, [getPlayedTick]);
 
   /**
    * 정리 함수
@@ -487,12 +512,16 @@ export function useAdPlugPlayer({
       workletNodeRef.current.port.postMessage({ type: 'clear' });
     }
 
+    // 시간 추적 리셋
+    totalSamplesSentRef.current = 0;
+
     isPlayingRef.current = true;
     isPausedRef.current = false;
     playerRef.current.setIsPlaying(true);
 
-    // 샘플 생성 시작
+    // 샘플 생성 시작 (버퍼 채운 후 시간 측정 시작)
     startSampleGeneration();
+    playbackStartTimeRef.current = performance.now();
 
     // 즉시 상태 업데이트
     const playerState = playerRef.current.getState();
