@@ -56,16 +56,17 @@
   --toggle-active-bg: var(--color-lime);
   --toggle-active-text: var(--color-black);
 
-  /* Meters - 밝은 회색 배경에 어울리는 진한 색상 */
-  --meter-low: #707080;
-  --meter-mid: #505060;
-  --meter-high: #303040;
-
-  /* Segment inactive background */
-  --segment-inactive: rgba(0, 0, 0, 0.05);
-
-  /* Peak LED - 밝은 LED 색상 */
+  /* Meters - 다크모드 색상으로 통일 */
+  --meter-low: #4a5568;
+  --meter-mid: #6b7a8f;
+  --meter-high: #8fa0b8;
   --meter-peak: #00FF00;
+
+  /* Spectrum bar inset (3D 효과) */
+  --spectrum-bar-bg: #1e1e2a;
+  --spectrum-bar-shadow: #0d0d12;
+  --spectrum-bar-highlight: #3f3f50;
+  --segment-inactive: rgba(255, 255, 255, 0.05);
 
   /* Piano */
   --piano-white-key: #FFFFFF;
@@ -121,16 +122,17 @@
     --toggle-active-bg: rgba(255, 255, 255, 0.20);
     --toggle-active-text: #f4f4f5;
 
-    /* Meters - 다크블루그레이 배경에 어울리는 블루그레이 계열 */
+    /* Meters - 라이트모드와 동일 */
     --meter-low: #4a5568;
     --meter-mid: #6b7a8f;
     --meter-high: #8fa0b8;
-
-    /* Segment inactive background */
-    --segment-inactive: rgba(255, 255, 255, 0.05);
-
-    /* Peak LED - 밝은 LED 색상 (라이트모드와 동일) */
     --meter-peak: #00FF00;
+
+    /* Spectrum bar inset (3D 효과) - 라이트모드와 동일 */
+    --spectrum-bar-bg: #1e1e2a;
+    --spectrum-bar-shadow: #0d0d12;
+    --spectrum-bar-highlight: #3f3f50;
+    --segment-inactive: rgba(255, 255, 255, 0.05);
 
     /* Piano */
     --piano-white-key: #52525b;

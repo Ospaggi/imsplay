@@ -53,7 +53,13 @@ export default function SpectrumVisualizer({
     mid: string;
     high: string;
     peak: string;
-  }>({ inactive: "#808080", low: "#707080", mid: "#505060", high: "#303040", peak: "#00FF00" });
+    barBg: string;
+    barShadow: string;
+    barHighlight: string;
+  }>({
+    inactive: "#808080", low: "#4a5568", mid: "#6b7a8f", high: "#8fa0b8", peak: "#00FF00",
+    barBg: "#1e1e2a", barShadow: "#0d0d12", barHighlight: "#3f3f50"
+  });
 
   // 색상 업데이트
   const updateColors = () => {
@@ -64,6 +70,9 @@ export default function SpectrumVisualizer({
       mid: getCSSColor(containerRef.current, "--meter-mid"),
       high: getCSSColor(containerRef.current, "--meter-high"),
       peak: getCSSColor(containerRef.current, "--meter-peak"),
+      barBg: getCSSColor(containerRef.current, "--spectrum-bar-bg"),
+      barShadow: getCSSColor(containerRef.current, "--spectrum-bar-shadow"),
+      barHighlight: getCSSColor(containerRef.current, "--spectrum-bar-highlight"),
     };
   };
 
@@ -104,21 +113,50 @@ export default function SpectrumVisualizer({
     ctx.clearRect(0, 0, width, height);
 
     const padding = 8;
-    const gap = 3;
+    const gap = 4;
+    const borderWidth = 2;
+    const innerPadding = 3;
     const segmentGap = 1;
 
     const availableWidth = width - padding * 2;
     const availableHeight = height - padding * 2;
 
     const barWidth = (availableWidth - gap * (barCount - 1)) / barCount;
-    const segmentHeight = (availableHeight - segmentGap * (segmentCount - 1)) / segmentCount;
+    const innerWidth = barWidth - borderWidth * 2 - innerPadding * 2;
+    const innerHeight = availableHeight - borderWidth * 2 - innerPadding * 2;
+    const segmentHeight = (innerHeight - segmentGap * (segmentCount - 1)) / segmentCount;
 
     const colors = colorsRef.current;
     const barData = barDataRef.current;
 
     for (let i = 0; i < barCount; i++) {
       const bar = barData[i];
-      const x = padding + i * (barWidth + gap);
+      const barX = padding + i * (barWidth + gap);
+      const barY = padding;
+
+      // 3D inset 바 배경 그리기
+      // 상단/좌측 테두리 (어두운 색 - 그림자)
+      ctx.fillStyle = colors.barShadow;
+      ctx.fillRect(barX, barY, barWidth, borderWidth); // 상단
+      ctx.fillRect(barX, barY, borderWidth, availableHeight); // 좌측
+
+      // 하단/우측 테두리 (밝은 색 - 하이라이트)
+      ctx.fillStyle = colors.barHighlight;
+      ctx.fillRect(barX, barY + availableHeight - borderWidth, barWidth, borderWidth); // 하단
+      ctx.fillRect(barX + barWidth - borderWidth, barY, borderWidth, availableHeight); // 우측
+
+      // 내부 배경
+      ctx.fillStyle = colors.barBg;
+      ctx.fillRect(
+        barX + borderWidth,
+        barY + borderWidth,
+        barWidth - borderWidth * 2,
+        availableHeight - borderWidth * 2
+      );
+
+      // 세그먼트 영역
+      const segX = barX + borderWidth + innerPadding;
+      const segStartY = barY + borderWidth + innerPadding;
 
       // 피크 세그먼트 위치 계산 (항상 바 값 바로 위, 최소 0)
       const peakSegIndex = Math.min(
@@ -148,12 +186,10 @@ export default function SpectrumVisualizer({
         }
 
         // 세그먼트 그리기 (아래에서 위로)
-        const y = padding + (segmentCount - 1 - segIndex) * (segmentHeight + segmentGap);
+        const segY = segStartY + (segmentCount - 1 - segIndex) * (segmentHeight + segmentGap);
 
         ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.roundRect(x, y, barWidth, segmentHeight, 1);
-        ctx.fill();
+        ctx.fillRect(segX, segY, innerWidth, segmentHeight);
       }
     }
   };
