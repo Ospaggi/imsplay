@@ -237,17 +237,21 @@ export function useAdPlugPlayer({
     const processor = audioContext.createScriptProcessor(bufferSize, 0, 2);
 
     processor.onaudioprocess = (e) => {
+      const outputBuffer = e.outputBuffer;
+      const outputL = outputBuffer.getChannelData(0);
+      const outputR = outputBuffer.getChannelData(1);
+      const framesNeeded = outputBuffer.length;
+
+      // 재생 중이 아니면 무음으로 채움
       if (!playerRef.current || !isPlayingRef.current) {
+        for (let i = 0; i < framesNeeded; i++) {
+          outputL[i] = 0;
+          outputR[i] = 0;
+        }
         return;
       }
 
       const player = playerRef.current;
-      const outputBuffer = e.outputBuffer;
-      const outputL = outputBuffer.getChannelData(0);
-      const outputR = outputBuffer.getChannelData(1);
-
-      const framesNeeded = outputBuffer.length;
-      const samplesNeeded = framesNeeded * 2; // 스테레오
       let outputOffset = 0;
       let trackFinished = false;
 
