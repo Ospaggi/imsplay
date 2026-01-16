@@ -4,4 +4,5 @@ export default [
   index("routes/home.tsx"),
   route("api/extract-titles", "routes/api/extract-titles.tsx"),
   route("api/parse-iss", "routes/api/parse-iss.ts"),
+  route("api/check-file", "routes/api/check-file.ts"),
 ] satisfies RouteConfig;

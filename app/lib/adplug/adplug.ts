@@ -25,6 +25,7 @@ interface AdPlugEmscriptenModule {
   _emu_get_sample_rate(): number;
   _emu_rewind(): void;
   _emu_get_current_tick(): number;
+  _emu_get_refresh_rate(): number;
 
   HEAP8: Int8Array;
   HEAP16: Int16Array;
@@ -256,6 +257,16 @@ export class AdPlugPlayer {
       return 0;
     }
     return this.module._emu_get_current_tick();
+  }
+
+  /**
+   * Get refresh rate (ticks per second)
+   */
+  getRefreshRate(): number {
+    if (!this.module || !this.fileLoaded) {
+      return 70.0;
+    }
+    return this.module._emu_get_refresh_rate();
   }
 
   /**

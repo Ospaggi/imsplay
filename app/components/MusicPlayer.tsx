@@ -143,6 +143,12 @@ async function parseISSFile(issFile: File | string): Promise<ISSData | null> {
 
     // URL 문자열인 경우 File로 변환
     if (typeof issFile === 'string') {
+      // 먼저 파일 존재 여부 확인 (404 콘솔 로그 방지)
+      const relativePath = issFile.replace(/^\/+/, '');
+      if (!(await checkFileExists(relativePath))) {
+        return null;
+      }
+
       const response = await fetch(issFile);
       if (!response.ok) return null;
       const blob = await response.blob();
@@ -161,16 +167,32 @@ async function parseISSFile(issFile: File | string): Promise<ISSData | null> {
     });
 
     if (!response.ok) {
-      console.warn('ISS parsing failed:', response.statusText);
       return null;
     }
 
     const data = await response.json();
     return data as ISSData;
-  } catch (error) {
-    console.warn('ISS file not found or parsing error:', error);
+  } catch {
     return null;
   }
+}
+
+/**
+ * 서버에서 파일 존재 여부 확인 (404 콘솔 로그 방지)
+ */
+async function checkFileExists(filePath: string): Promise<boolean> {
+  try {
+    // 앞의 '/' 제거
+    const cleanPath = filePath.replace(/^\/+/, '');
+    const response = await fetch(`/api/check-file?path=${encodeURIComponent(cleanPath)}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.exists === true;
+    }
+  } catch {
+    // 무시
+  }
+  return false;
 }
 
 /**
@@ -180,13 +202,10 @@ async function findMatchingBnkFile(musicFilePath: string): Promise<string> {
   const basePath = musicFilePath.substring(0, musicFilePath.lastIndexOf('.'));
   const matchingBnkPath = `${basePath}.BNK`;
 
-  try {
-    const response = await fetch(matchingBnkPath, { method: 'HEAD' });
-    if (response.ok) {
-      return matchingBnkPath;
-    }
-  } catch (error) {
-    // 파일이 없으면 STANDARD.BNK 사용
+  // 앞의 '/' 제거하여 상대 경로로 확인
+  const relativePath = matchingBnkPath.replace(/^\/+/, '');
+  if (await checkFileExists(relativePath)) {
+    return matchingBnkPath;
   }
 
   return BNK_FILE;

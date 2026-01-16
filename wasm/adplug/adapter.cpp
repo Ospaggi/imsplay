@@ -15,7 +15,7 @@
 #include "binstr.h"
 
 // Audio buffer size (samples per channel)
-static const int AUDIO_BUFFER_SIZE = 8192;
+static const int AUDIO_BUFFER_SIZE = 512;
 
 // Global state
 static CNemuopl* g_opl = nullptr;
@@ -440,6 +440,17 @@ void emu_rewind()
 unsigned long emu_get_current_tick()
 {
     return g_currentTick;
+}
+
+/**
+ * Get refresh rate (ticks per second)
+ * @return Refresh rate in Hz (e.g., 70.0 for 70 ticks/sec)
+ */
+float emu_get_refresh_rate()
+{
+    if (!g_player) return 70.0f;
+    float rate = g_player->getrefresh();
+    return rate > 0 ? rate : 70.0f;
 }
 
 } // extern "C"

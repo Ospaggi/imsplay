@@ -13,6 +13,8 @@ class AdPlugProcessor extends AudioWorkletProcessor {
     this.sampleQueue = [];
     this.currentBuffer = null;
     this.currentOffset = 0;
+    this.totalSamplesOutput = 0;  // 총 출력 샘플 수 (ISS 동기화용)
+    this.lastPositionUpdate = 0;  // 마지막 위치 업데이트 시점
 
     // Receive samples from main thread
     this.port.onmessage = (event) => {
@@ -25,6 +27,8 @@ class AdPlugProcessor extends AudioWorkletProcessor {
         this.sampleQueue = [];
         this.currentBuffer = null;
         this.currentOffset = 0;
+        this.totalSamplesOutput = 0;
+        this.lastPositionUpdate = 0;
         // 클리어 완료 알림
         this.port.postMessage({ type: 'cleared' });
       }
@@ -60,6 +64,7 @@ class AdPlugProcessor extends AudioWorkletProcessor {
       outputL[i] = this.currentBuffer[this.currentOffset];
       outputR[i] = this.currentBuffer[this.currentOffset + 1];
       this.currentOffset += 2;
+      this.totalSamplesOutput++;  // 프레임 카운트 (샘플 쌍)
     }
 
     // 큐가 거의 비었으면 더 요청
@@ -69,7 +74,22 @@ class AdPlugProcessor extends AudioWorkletProcessor {
 
     // 16384 프레임 미만이면 추가 요청 (~370ms at 44100Hz)
     if (totalFrames < 16384) {
-      this.port.postMessage({ type: 'needSamples', frames: totalFrames });
+      this.port.postMessage({
+        type: 'needSamples',
+        frames: totalFrames,
+        samplesOutput: this.totalSamplesOutput
+      });
+      this.lastPositionUpdate = this.totalSamplesOutput;
+    }
+
+    // 주기적 위치 업데이트 (~30fps = 매 1470 프레임, ~33ms at 44100Hz)
+    // needSamples와 별개로 UI가 항상 최신 위치를 받도록 함
+    if (this.totalSamplesOutput - this.lastPositionUpdate >= 1470) {
+      this.port.postMessage({
+        type: 'position',
+        samplesOutput: this.totalSamplesOutput
+      });
+      this.lastPositionUpdate = this.totalSamplesOutput;
     }
 
     return true;
