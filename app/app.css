@@ -150,6 +150,11 @@
   padding: 0;
 }
 
+html {
+  background: var(--bg-main);
+  min-height: 100%;
+}
+
 body {
   font-family: 'IyagiGGC', 'MS Sans Serif', 'Microsoft Sans Serif', sans-serif;
   background: var(--bg-main);
@@ -158,6 +163,7 @@ body {
   line-height: 1.4;
   font-weight: normal;
   font-style: normal;
+  min-height: 100%;
 }
 
 /* === 3D BORDER UTILITIES === */
@@ -944,7 +950,8 @@ body {
     scrollbar-color: #3f3f50 #1e1e2a;
   }
 
-  /* 페이지 배경 (body) */
+  /* 페이지 배경 (html, body) */
+  html,
   body {
     background: #18181f;
   }
