@@ -6,7 +6,7 @@
 
 ### 🎵 음악 재생
 - **AdPlug 2.4 기반** - 60개 이상의 AdLib 음악 포맷 지원 (WASM으로 컴파일)
-- **IMS (Interactive Music System)** - 한국에서 개발된 이벤트 기반 음악 형식 (47개 샘플 포함)
+- **IMS (Iyagi Music Sound)** - 한국에서 개발된 이벤트 기반 음악 형식 (47개 샘플 포함)
 - **ROL (AdLib Visual Composer)** - AdLib Visual Composer 음악 형식 (6개 샘플 포함)
 - **VGM (Video Game Music)** - 비디오 게임 음악 포맷 지원
 - **BNK (Instrument Bank)** - 악기 정의 파일 (STANDARD.BNK + 12개 커스텀 뱅크)
