@@ -157,7 +157,10 @@ export function useAdPlugPlayer({
     // 트랙 종료 처리 (최소 1초 이상 재생 후에만)
     // 44100Hz에서 1초 = 44100 샘플
     const minSamplesBeforeEnd = SAMPLE_RATE;
-    if (finished && totalSamplesSentRef.current >= minSamplesBeforeEnd) {
+    // 버퍼에 남은 샘플 수 확인 (실제 스피커 출력까지 기다림)
+    const samplesInBuffer = totalSamplesSentRef.current - workletSamplesOutputRef.current;
+    const bufferThreshold = SAMPLE_RATE * 0.05; // 50ms 이하일 때만 종료
+    if (finished && totalSamplesSentRef.current >= minSamplesBeforeEnd && samplesInBuffer <= bufferThreshold) {
       if (loopEnabledRef.current) {
         player.rewind();
         totalSamplesSentRef.current = 0;
