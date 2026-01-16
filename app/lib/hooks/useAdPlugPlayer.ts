@@ -292,12 +292,24 @@ export function useAdPlugPlayer({
         // 트랙 종료 콜백 플래그 리셋
         trackEndCallbackFiredRef.current = false;
 
-        // 오디오 프로세서 초기화 (기존 워크렛이 있으면 재사용)
-        // 버퍼 클리어는 hardReset()에서 처리하므로 여기서는 하지 않음
-        if (!workletNodeRef.current) {
-          // 최초 로드 시에만 새로 생성
-          await initializeAudioProcessor(audioContext);
+        // 오디오 프로세서 초기화 (매번 새로 생성하여 클린한 상태 보장)
+        if (workletNodeRef.current) {
+          workletNodeRef.current.disconnect();
+          workletNodeRef.current = null;
         }
+        if (gainNodeRef.current) {
+          gainNodeRef.current.disconnect();
+          gainNodeRef.current = null;
+        }
+        if (analyserNodeRef.current) {
+          analyserNodeRef.current.disconnect();
+          analyserNodeRef.current = null;
+          setAnalyserNode(null);
+        }
+        if (mediaStreamDestRef.current) {
+          mediaStreamDestRef.current = null;
+        }
+        await initializeAudioProcessor(audioContext);
 
         // 초기 상태 설정
         fileNameRef.current = musicFile.name;
@@ -479,9 +491,9 @@ export function useAdPlugPlayer({
 
   /**
    * 완전 리셋 (트랙 전환 시 모든 상태 초기화)
-   * - 워크렛 버퍼 클리어 및 응답 대기
    * - 시간/틱 값 리셋
    * - UI 상태 리셋
+   * 주의: 워크렛은 initializePlayer()에서 매번 새로 생성되므로 버퍼 클리어 불필요
    */
   const hardReset = useCallback(async () => {
     // 재생 상태 즉시 중지 (needSamples 요청 무시)
@@ -496,26 +508,6 @@ export function useAdPlugPlayer({
     trackEndCallbackFiredRef.current = false;
 
     stopSampleGeneration();
-
-    // 워크렛 버퍼 클리어 및 완료 대기
-    if (workletNodeRef.current) {
-      await new Promise<void>((resolve) => {
-        const handler = (event: MessageEvent) => {
-          if (event.data.type === 'cleared') {
-            workletNodeRef.current?.port.removeEventListener('message', handler);
-            resolve();
-          }
-        };
-        workletNodeRef.current!.port.addEventListener('message', handler);
-        workletNodeRef.current!.port.postMessage({ type: 'clear' });
-        // 타임아웃 (100ms 후에도 응답 없으면 진행)
-        setTimeout(() => {
-          workletNodeRef.current?.port.removeEventListener('message', handler);
-          resolve();
-        }, 100);
-      });
-
-    }
 
     // UI 상태 즉시 리셋
     setState(prev => prev ? {
