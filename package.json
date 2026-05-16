@@ -1,6 +1,6 @@
 {
   "name": "imsplay",
-  "version": "3.0",
+  "version": "3.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,6 @@
     "vgm-to-ims": "tsx tools/vgm-to-ims/index.ts"
   },
   "dependencies": {
-    "@ain1084/audio-worklet-stream": "^2.0.1",
     "@malvineous/opl": "^1.0.0",
     "@react-router/node": "^7.9.2",
     "@react-router/serve": "^7.9.2",
