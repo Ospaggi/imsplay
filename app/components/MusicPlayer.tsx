@@ -7,7 +7,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useFetcher } from "react-router";
 import { useAdPlugPlayer } from "~/lib/hooks/useAdPlugPlayer";
-import { ADPLUG_EXTENSIONS } from "~/lib/adplug/adplug";
+import { useLibOpenMPTPlayer } from "~/lib/hooks/useLibOpenMPTPlayer";
+import { getPlayerType, getAllSupportedExtensions, type PlayerType } from "~/lib/format-detection";
 // ═══════════════════════════════════════════════════════════════
 // [MEDIA SESSION API - 비활성화됨]
 // 나중에 재활성화하려면 이 섹션의 주석을 제거하세요
@@ -21,7 +22,7 @@ import DosList from "~/components/dos-ui/DosList";
 import DosSlider from "~/components/dos-ui/DosSlider";
 import LyricsDisplay from "./LyricsDisplay";
 import type { ISSData } from "~/routes/api/parse-iss";
-import { Repeat1, Repeat, Play, Square, SkipBack, SkipForward, Shuffle, HelpCircle, X } from "lucide-react";
+import { Repeat1, Repeat, Play, Square, SkipBack, SkipForward, Shuffle, HelpCircle, X, Volume2 } from "lucide-react";
 import { version } from "../../package.json";
 
 type MusicFormat = string | null;
@@ -136,8 +137,15 @@ export const MUSIC_SAMPLES: MusicSample[] = [
   { musicFile: "/04 Tropical Ghost Oasis.vgm", format: "VGM" },
   { musicFile: "/05 Welcome to a Kick In Yore Pants In Good Ole Hillville!.vgm", format: "VGM" },
   { musicFile: "/18 Tyrian, The Level.vgm", format: "VGM" },
-  // S3M 샘플 (AdLib 기반)
-  { musicFile: "/adlibsp.s3m", format: "S3M" },
+
+  // Tracker 샘플 - Demoscene Classics (libopenmpt)
+  { musicFile: "/skyrider.s3m", format: "S3M" },
+  { musicFile: "/satellite_one.s3m", format: "S3M" },
+  { musicFile: "/celestial_fantasia.s3m", format: "S3M" },
+  { musicFile: "/dead_lock.xm", format: "XM" },
+  { musicFile: "/space_debris.mod", format: "MOD" },
+  { musicFile: "/unreeeal_superhero_3.xm", format: "XM" },
+  { musicFile: "/path_to_nowhere.xm", format: "XM" },
 ];
 
 const BNK_FILE = "/STANDARD.BNK";
@@ -317,6 +325,10 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   // 공유 AudioContext (IMS/ROL 플레이어 간 공유 - Safari autoplay 정책 준수)
   const sharedAudioContextRef = useRef<AudioContext | null>(null);
 
+  // 공유 StreamNodeFactory (AudioWorklet 중복 등록 방지)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sharedStreamFactoryRef = useRef<any>(null);
+
   // Media Session API용 Audio 요소 (srcObject로 MediaStream 연결)
   const audioElementRef = useRef<HTMLAudioElement>(null);
 
@@ -328,9 +340,15 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     if (!currentMusicFile) return null;
     const ext = currentMusicFile.name.toLowerCase().split(".").pop();
     if (!ext) return null;
-    // AdPlug 지원 포맷인지 체크
-    if (ADPLUG_EXTENSIONS.includes(`.${ext}`)) return ext.toUpperCase();
+    const allExtensions = getAllSupportedExtensions();
+    if (allExtensions.includes(`.${ext}`)) return ext.toUpperCase();
     return null;
+  }, [currentMusicFile]);
+
+  // 플레이어 타입 결정 (libopenmpt vs AdPlug)
+  const playerType: PlayerType = useMemo(() => {
+    if (!currentMusicFile) return null;
+    return getPlayerType(currentMusicFile.name);
   }, [currentMusicFile]);
 
   // 트랙 종료 콜백 (백그라운드에서도 작동)
@@ -338,16 +356,31 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     playNextTrackRef.current?.();
   }, []);
 
-  // AdPlug 통합 플레이어 (IMS, ROL, VGM 및 모든 AdPlug 지원 포맷)
-  const player = useAdPlugPlayer({
-    musicFile: currentMusicFile,
-    bnkFile: currentBnkFile,
+  // AdPlug 플레이어 (IMS, ROL, VGM 및 AdLib 전용 포맷)
+  const adplugPlayer = useAdPlugPlayer({
+    musicFile: playerType === 'adplug' ? currentMusicFile : null,
+    bnkFile: playerType === 'adplug' ? currentBnkFile : null,
     fileLoadKey,
     forceReloadRef,
     onTrackEnd: handleTrackEnd,
     sharedAudioContextRef,
+    sharedStreamFactoryRef,
     audioElementRef,
   });
+
+  // libopenmpt 플레이어 (MOD, XM, IT, S3M 등 트래커 포맷)
+  const libopenmptPlayer = useLibOpenMPTPlayer({
+    musicFile: playerType === 'libopenmpt' ? currentMusicFile : null,
+    fileLoadKey,
+    forceReloadRef,
+    onTrackEnd: handleTrackEnd,
+    sharedAudioContextRef,
+    sharedStreamFactoryRef,
+    audioElementRef,
+  });
+
+  // 활성 플레이어 선택 (통합 인터페이스)
+  const player = playerType === 'libopenmpt' ? libopenmptPlayer : adplugPlayer;
 
   const { state, error, isPlayerReady, analyserNode, play, pause, stop, setMasterVolume, checkPlayerReady, refreshState, hardReset } = player;
 
@@ -433,14 +466,15 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     setLoadedFileCount(0); // 로딩 카운트 초기화
 
     try {
-      // AdPlug 지원 확장자 패턴 생성
-      const adplugExtPattern = new RegExp(
-        `\\.(${ADPLUG_EXTENSIONS.map(e => e.slice(1)).join('|')})$`,
+      // 지원 확장자 패턴 생성 (AdPlug + libopenmpt)
+      const supportedExtensions = getAllSupportedExtensions();
+      const supportedExtPattern = new RegExp(
+        `\\.(${supportedExtensions.map(e => e.slice(1)).join('|')})$`,
         'i'
       );
 
       // 파일 분류 (대소문자 구별 없이)
-      const musicFiles = files.filter(f => adplugExtPattern.test(f.name));
+      const musicFiles = files.filter(f => supportedExtPattern.test(f.name));
       const bnkFiles = files.filter(f => /\.bnk$/i.test(f.name));
       const issFiles = files.filter(f => /\.iss$/i.test(f.name));
 
@@ -475,37 +509,70 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
           titlesMap.set(file.name, title);
         });
 
-        // IMS 파일이 있으면 API 호출 (한글 제목 추출)
+        // IMS 파일이 있으면 캐시 확인 후 필요하면 API 호출 (한글 제목 추출)
         if (batchImsFiles.length > 0) {
-          const formData = new FormData();
-          batchImsFiles.forEach((file, index) => {
-            formData.append(`ims-${index}`, file);
-          });
+          // localStorage 캐시 확인
+          const uncachedImsFiles: File[] = [];
 
-          try {
-            const response = await fetch('/api/extract-titles', {
-              method: 'POST',
-              body: formData,
+          for (const file of batchImsFiles) {
+            const cacheKey = `ims-title-${file.name}-${file.size}`;
+            try {
+              const cachedTitle = localStorage.getItem(cacheKey);
+              if (cachedTitle) {
+                titlesMap.set(file.name, cachedTitle);
+              } else {
+                uncachedImsFiles.push(file);
+              }
+            } catch {
+              // localStorage 접근 실패 시 API 호출 대상에 추가
+              uncachedImsFiles.push(file);
+            }
+          }
+
+          // 캐시에 없는 파일만 API 호출
+          if (uncachedImsFiles.length > 0) {
+            const formData = new FormData();
+            uncachedImsFiles.forEach((file, index) => {
+              formData.append(`ims-${index}`, file);
             });
 
-            if (response.ok) {
-              const data = await response.json();
-              Object.entries(data.titleMap).forEach(([fileName, title]) => {
-                titlesMap.set(fileName, title as string);
+            try {
+              const response = await fetch('/api/extract-titles', {
+                method: 'POST',
+                body: formData,
               });
-              setUserMusicFileTitles(new Map(titlesMap));
-            } else if (response.status === 413) {
-              console.warn(`Batch 크기가 너무 큽니다. 배치 크기를 줄이세요.`);
-              batchImsFiles.forEach(file => {
+
+              if (response.ok) {
+                const data = await response.json();
+                Object.entries(data.titleMap).forEach(([fileName, title]) => {
+                  titlesMap.set(fileName, title as string);
+
+                  // localStorage에 캐싱 (파일 크기 포함)
+                  const file = uncachedImsFiles.find(f => f.name === fileName);
+                  if (file) {
+                    const cacheKey = `ims-title-${file.name}-${file.size}`;
+                    try {
+                      localStorage.setItem(cacheKey, title as string);
+                    } catch {
+                      // localStorage 저장 실패는 무시 (용량 초과 등)
+                    }
+                  }
+                });
+              } else if (response.status === 413) {
+                console.warn(`Batch 크기가 너무 큽니다. 배치 크기를 줄이세요.`);
+                uncachedImsFiles.forEach(file => {
+                  titlesMap.set(file.name, file.name.replace(/\.ims$/i, ''));
+                });
+              }
+            } catch (error) {
+              console.error(`Batch 처리 실패:`, error);
+              uncachedImsFiles.forEach(file => {
                 titlesMap.set(file.name, file.name.replace(/\.ims$/i, ''));
               });
             }
-          } catch (error) {
-            console.error(`Batch 처리 실패:`, error);
-            batchImsFiles.forEach(file => {
-              titlesMap.set(file.name, file.name.replace(/\.ims$/i, ''));
-            });
           }
+
+          setUserMusicFileTitles(new Map(titlesMap));
         }
 
         // 진행률 업데이트 및 배치 파일명 순차 표시
@@ -618,6 +685,28 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     setPlayingTrackIndex(index);
 
     try {
+      // 새 파일의 플레이어 타입 미리 확인
+      let newFileName: string | undefined;
+      if (isUserFolder || files) {
+        const musicFiles = files || userMusicFiles;
+        newFileName = musicFiles[index]?.name;
+      } else {
+        const sample = musicSamples[index];
+        newFileName = sample?.musicFile.split("/").pop();
+      }
+
+      // 플레이어 타입이 변경되면 이전 플레이어 정리
+      if (newFileName) {
+        const newPlayerType = getPlayerType(newFileName);
+        if (playerType !== null && newPlayerType !== null && playerType !== newPlayerType) {
+          // 이전 플레이어 정지 (버퍼 정리 포함)
+          stop();
+
+          // 이전 플레이어의 오디오 노드가 완전히 정리될 시간을 줌
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
       if (isUserFolder || files) {
         // 사용자 폴더 모드
         const musicFiles = files || userMusicFiles;
@@ -688,19 +777,31 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
     } finally {
       setIsLoadingTrack(false);
     }
-  }, [isUserFolder, userMusicFiles, userBnkFiles, musicSamples, state?.isPlaying, hardReset]);
+  }, [isUserFolder, userMusicFiles, userBnkFiles, musicSamples, state?.isPlaying, hardReset, playerType]);
 
   /**
    * titleMap을 사용하여 샘플 목록에 제목 추가
    */
   useEffect(() => {
+    const trackerFormats = ['MOD', 'S3M', 'XM', 'IT'];
     const samplesWithTitles = MUSIC_SAMPLES.map((sample) => {
+      const fileName = sample.musicFile.slice(1);
+
       if (sample.format === 'IMS') {
-        const fileName = sample.musicFile.slice(1);
+        // IMS: titleMap에서 Johab 변환된 제목 사용
         const title = titleMap[fileName] || fileName.replace('.IMS', '');
         return { ...sample, title };
+      } else if (trackerFormats.includes(sample.format)) {
+        // Tracker 포맷: 이미 제목이 있으면 사용, 없으면 titleMap에서 가져오기
+        if (sample.title) {
+          return sample;
+        }
+        const title = titleMap[fileName] || fileName;
+        return { ...sample, title };
       } else {
-        const title = sample.musicFile.slice(1).replace('.ROL', '');
+        // VGM, ROL 등 기타 포맷
+        const ext = `.${sample.format}`;
+        const title = fileName.replace(new RegExp(`${ext}$`, 'i'), '');
         return { ...sample, title };
       }
     });
@@ -907,16 +1008,22 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
   }, [play, pause, stop, playPreviousTrack, playNextTrack]);
 
   /**
-   * Media Session API - 액션 핸들러 등록 (한 번만)
+   * Media Session API - 액션 핸들러 등록
+   * 재생 상태가 변경될 때마다 핸들러를 재등록하여 브라우저 세션 복원 시에도 동작하도록 함
    */
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
 
-    navigator.mediaSession.setActionHandler("play", () => playRef.current?.());
-    navigator.mediaSession.setActionHandler("pause", () => pauseRef.current?.());
-    navigator.mediaSession.setActionHandler("previoustrack", () => playPreviousTrackRef.current?.());
-    navigator.mediaSession.setActionHandler("nexttrack", () => playNextTrackRefForMedia.current?.());
-    navigator.mediaSession.setActionHandler("stop", () => stopRef.current?.());
+    const registerHandlers = () => {
+      navigator.mediaSession.setActionHandler("play", () => playRef.current?.());
+      navigator.mediaSession.setActionHandler("pause", () => pauseRef.current?.());
+      navigator.mediaSession.setActionHandler("previoustrack", () => playPreviousTrackRef.current?.());
+      navigator.mediaSession.setActionHandler("nexttrack", () => playNextTrackRefForMedia.current?.());
+      navigator.mediaSession.setActionHandler("stop", () => stopRef.current?.());
+    };
+
+    // 핸들러 등록
+    registerHandlers();
 
     return () => {
       if ("mediaSession" in navigator) {
@@ -927,22 +1034,24 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         navigator.mediaSession.setActionHandler("stop", null);
       }
     };
-  }, []); // 빈 의존성 - 한 번만 등록
+  }, [state?.isPlaying]); // 재생 상태 변경 시 재등록
 
   /**
    * Media Session API - 재생 상태 업데이트
+   * 음악 파일이 로드되어 있으면 "paused" 상태로 설정하여 이전/다음 버튼 활성화
    */
   useEffect(() => {
     if (!("mediaSession" in navigator)) return;
 
     if (state?.isPlaying) {
       navigator.mediaSession.playbackState = "playing";
-    } else if (state?.isPaused) {
+    } else if (state?.isPaused || currentMusicFile) {
+      // 일시정지 상태이거나 음악 파일이 로드되어 있으면 paused로 설정
       navigator.mediaSession.playbackState = "paused";
     } else {
       navigator.mediaSession.playbackState = "none";
     }
-  }, [state?.isPlaying, state?.isPaused]);
+  }, [state?.isPlaying, state?.isPaused, currentMusicFile]);
 
   /**
    * Media Session API - 메타데이터 업데이트 (트랙 변경 시에만)
@@ -1028,6 +1137,8 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
 
   // 음악 리스트 아이템 생성
   const listItems = useMemo(() => {
+    const isCurrentlyPlaying = (index: number) => index === playingTrackIndex && state?.isPlaying;
+
     if (isUserFolder) {
       // 사용자 폴더 모드
       return userMusicFiles.map((file, index) => {
@@ -1038,11 +1149,26 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
         return {
           key: `${index}-${file.name}`,
           content: (
-            <div className="flex gap-8 align-center w-full" style={{ overflow: 'hidden' }}>
+            <div className="flex gap-8 w-full" style={{ overflow: 'hidden', alignItems: 'center' }}>
               <span className={`dos-badge ${getFormatBadgeClass()}`} style={{ flexShrink: 0 }}>
                 {format}
               </span>
-              <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
+              <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{title}</span>
+              {isCurrentlyPlaying(index) && (
+                <span style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: 'var(--text-main)',
+                  color: 'var(--bg-main)'
+                }}>
+                  <Volume2 size={12} />
+                </span>
+              )}
             </div>
           ),
         };
@@ -1052,16 +1178,31 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
       return musicSamples.map((sample, index) => ({
         key: sample.musicFile,
         content: (
-          <div className="flex gap-8 align-center w-full" style={{ overflow: 'hidden' }}>
+          <div className="flex gap-8 w-full" style={{ overflow: 'hidden', alignItems: 'center' }}>
             <span className={`dos-badge ${getFormatBadgeClass()}`} style={{ flexShrink: 0 }}>
               {sample.format}
             </span>
-            <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sample.title || sample.musicFile.slice(1)}</span>
+            <span className="sample-title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{sample.title || sample.musicFile.slice(1)}</span>
+            {isCurrentlyPlaying(index) && (
+              <span style={{
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  background: 'var(--text-main)',
+                  color: 'var(--bg-main)'
+                }}>
+                  <Volume2 size={12} />
+                </span>
+            )}
           </div>
         ),
       }));
     }
-  }, [isUserFolder, userMusicFiles, userMusicFileTitles, musicSamples]);
+  }, [isUserFolder, userMusicFiles, userMusicFileTitles, musicSamples, playingTrackIndex, state?.isPlaying]);
 
   // 선택된 트랙의 키 (UI 선택 기준)
   const selectedKey = useMemo(() => {
@@ -1254,55 +1395,82 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
             {/* 포맷 목록 - 스크롤 영역 */}
             <div className="dos-list" style={{ flex: 1, minHeight: 0 }}>
               <div className="dos-list-scroll" style={{ lineHeight: '1.6', padding: '8px' }}>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>A2M</span> - subz3ro의 AdLib Tracker 2 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>ADL</span> - Westwood ADL 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>AGD</span> - Remi Herbulot의 Herbulot AdLib Gold System (HERAD)</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>AMD</span> - Elyssis의 AMUSIC Adlib Tracker 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>BAM</span> - Bob's Adlib Music 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>BMF</span> - The Brain의 Easy AdLib 1.0 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>CFF</span> - CUD의 BoomTracker 4.0 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>CMF</span> - Creative Technology의 Creative Music 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>D00</span> - Vibrants의 EdLib 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>DFM</span> - R.Verhaag의 Digital-FM 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>DMO</span> - TwinTeam의 Twin TrackPlayer 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>DRO</span> - DOSBox Raw OPL 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>DTM</span> - DeFy의 DeFy Adlib Tracker 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>GOT</span> - Adept Software Roy Davis의 God Of Thunder Music 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>HA2</span> - Remi Herbulot의 Herbulot AdLib System v2 (HERAD)</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>HSC</span> - Hannes Seifert의 HSC Adlib Composer / Electronic Rats의 HSC-Tracker</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>HSP</span> - Number Six / Aegis Corp.의 HSC Packed 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>HSQ</span> - Remi Herbulot의 Herbulot AdLib System (HERAD)</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>IMF</span> - Apogee IMF 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>IMS</span> - IMPlay Song 포맷 (한국 도스 음악)</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>JBM</span> - JBM Adlib Music 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>KSM</span> - Ken Silverman의 Music 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>LAA</span> - LucasArts의 AdLib Audio 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>LDS</span> - LOUDNESS Sound System 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>M</span> - Origin AdLib Music 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>MAD</span> - Mlat Adlib Tracker 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>MDI</span> - Ad Lib Inc.의 AdLib MIDIPlay 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>MID</span> - MIDI 오디오 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>MKJ</span> - M \ K Productions의 MKJamz 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>MSC</span> - AdLib MSCplay 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>MTK</span> - SuBZeR0의 MPU-401 Trakker 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>MUS</span> - Ad Lib Inc.의 AdLib MIDI Music 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>PLX</span> - PALLADIX Sound System 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>RAD</span> - Reality의 Reality ADlib Tracker 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>RAW</span> - RDOS의 RdosPlay RAW 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>RIX</span> - Softstar RIX OPL Music 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>ROL</span> - AdLib Inc.의 AdLib Visual Composer 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>S3M</span> - Future Crew의 Screamtracker 3 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>SA2</span> - Surprise! Productions의 Surprise! Adlib Tracker 2 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>SAT</span> - Surprise! Productions의 Surprise! Adlib Tracker 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>SCI</span> - Sierra의 AdLib Audio 파일 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>SDB</span> - Remi Herbulot의 Herbulot AdLib System (HERAD)</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>SNG</span> - SNGPlay / Faust Music Creator / Adlib Tracker 1.0 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>SOP</span> - 이호범(sopepos)의 Note Sequencer 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>SQX</span> - Remi Herbulot의 Herbulot AdLib System (HERAD)</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>VGM</span> - Valley Bell의 Video Game Music 1.51 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>XAD</span> - Riven the Mage의 eXotic ADlib 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>XMS</span> - MaDoKaN/E.S.G의 XMS-Tracker 포맷</div>
-                <div><span style={{ color: '#2563eb', fontWeight: 'bold' }}>XSM</span> - Davey W Taylor의 eXtra Simple Music 포맷</div>
+                {/* AdLib 섹션 */}
+                <div style={{ color: 'var(--text-main)', marginBottom: '4px' }}>[ AdLib / OPL ]</div>
+                <div><span className="format-ext">A2M</span> - subz3ro의 AdLib Tracker 2 포맷</div>
+                <div><span className="format-ext">ADL</span> - Westwood ADL 파일 포맷</div>
+                <div><span className="format-ext">AGD</span> - Remi Herbulot의 Herbulot AdLib Gold System (HERAD)</div>
+                <div><span className="format-ext">AMD</span> - Elyssis의 AMUSIC Adlib Tracker 포맷</div>
+                <div><span className="format-ext">BAM</span> - Bob's Adlib Music 포맷</div>
+                <div><span className="format-ext">BMF</span> - The Brain의 Easy AdLib 1.0 포맷</div>
+                <div><span className="format-ext">CFF</span> - CUD의 BoomTracker 4.0 포맷</div>
+                <div><span className="format-ext">CMF</span> - Creative Technology의 Creative Music 파일 포맷</div>
+                <div><span className="format-ext">D00</span> - Vibrants의 EdLib 포맷</div>
+                <div><span className="format-ext">DFM</span> - R.Verhaag의 Digital-FM 포맷</div>
+                <div><span className="format-ext">DMO</span> - TwinTeam의 Twin TrackPlayer 포맷</div>
+                <div><span className="format-ext">DRO</span> - DOSBox Raw OPL 포맷</div>
+                <div><span className="format-ext">DTM</span> - DeFy의 DeFy Adlib Tracker 포맷</div>
+                <div><span className="format-ext">GOT</span> - Adept Software Roy Davis의 God Of Thunder Music 포맷</div>
+                <div><span className="format-ext">HA2</span> - Remi Herbulot의 Herbulot AdLib System v2 (HERAD)</div>
+                <div><span className="format-ext">HSC</span> - Hannes Seifert의 HSC Adlib Composer / Electronic Rats의 HSC-Tracker</div>
+                <div><span className="format-ext">HSP</span> - Number Six / Aegis Corp.의 HSC Packed 포맷</div>
+                <div><span className="format-ext">HSQ</span> - Remi Herbulot의 Herbulot AdLib System (HERAD)</div>
+                <div><span className="format-ext">IMF</span> - Apogee IMF 파일 포맷</div>
+                <div><span className="format-ext">IMS</span> - IMPlay Song 포맷 (한국 도스 음악)</div>
+                <div><span className="format-ext">JBM</span> - JBM Adlib Music 포맷</div>
+                <div><span className="format-ext">KSM</span> - Ken Silverman의 Music 포맷</div>
+                <div><span className="format-ext">LAA</span> - LucasArts의 AdLib Audio 파일 포맷</div>
+                <div><span className="format-ext">LDS</span> - LOUDNESS Sound System 포맷</div>
+                <div><span className="format-ext">M</span> - Origin AdLib Music 포맷</div>
+                <div><span className="format-ext">MAD</span> - Mlat Adlib Tracker 포맷</div>
+                <div><span className="format-ext">MDI</span> - Ad Lib Inc.의 AdLib MIDIPlay 파일 포맷</div>
+                <div><span className="format-ext">MID</span> - MIDI 오디오 파일 포맷</div>
+                <div><span className="format-ext">MKJ</span> - M \ K Productions의 MKJamz 포맷</div>
+                <div><span className="format-ext">MSC</span> - AdLib MSCplay 포맷</div>
+                <div><span className="format-ext">MTK</span> - SuBZeR0의 MPU-401 Trakker 포맷</div>
+                <div><span className="format-ext">MUS</span> - Ad Lib Inc.의 AdLib MIDI Music 포맷</div>
+                <div><span className="format-ext">PLX</span> - PALLADIX Sound System 포맷</div>
+                <div><span className="format-ext">RAD</span> - Reality의 Reality ADlib Tracker 포맷</div>
+                <div><span className="format-ext">RAW</span> - RDOS의 RdosPlay RAW 파일 포맷</div>
+                <div><span className="format-ext">RIX</span> - Softstar RIX OPL Music 포맷</div>
+                <div><span className="format-ext">ROL</span> - AdLib Inc.의 AdLib Visual Composer 포맷</div>
+                <div><span className="format-ext">SA2</span> - Surprise! Productions의 Surprise! Adlib Tracker 2 포맷</div>
+                <div><span className="format-ext">SAT</span> - Surprise! Productions의 Surprise! Adlib Tracker 포맷</div>
+                <div><span className="format-ext">SCI</span> - Sierra의 AdLib Audio 파일 포맷</div>
+                <div><span className="format-ext">SDB</span> - Remi Herbulot의 Herbulot AdLib System (HERAD)</div>
+                <div><span className="format-ext">SNG</span> - SNGPlay / Faust Music Creator / Adlib Tracker 1.0 포맷</div>
+                <div><span className="format-ext">SOP</span> - 이호범(sopepos)의 Note Sequencer 포맷</div>
+                <div><span className="format-ext">SQX</span> - Remi Herbulot의 Herbulot AdLib System (HERAD)</div>
+                <div><span className="format-ext">VGM</span> - Valley Bell의 Video Game Music 1.51 포맷</div>
+                <div><span className="format-ext">XAD</span> - Riven the Mage의 eXotic ADlib 포맷</div>
+                <div><span className="format-ext">XMS</span> - MaDoKaN/E.S.G의 XMS-Tracker 포맷</div>
+                <div><span className="format-ext">XSM</span> - Davey W Taylor의 eXtra Simple Music 포맷</div>
+
+                {/* MOD 섹션 */}
+                <div style={{ color: 'var(--text-main)', marginTop: '12px', marginBottom: '4px' }}>[ MOD / Tracker ]</div>
+                <div><span className="format-ext">MOD</span> - ProTracker / NoiseTracker 모듈 포맷</div>
+                <div><span className="format-ext">XM</span> - FastTracker 2 확장 모듈 포맷</div>
+                <div><span className="format-ext">IT</span> - Impulse Tracker 모듈 포맷</div>
+                <div><span className="format-ext">S3M</span> - Scream Tracker 3 모듈 포맷</div>
+                <div><span className="format-ext">MPTM</span> - OpenMPT 모듈 포맷</div>
+                <div><span className="format-ext">STM</span> - Scream Tracker 2 모듈 포맷</div>
+                <div><span className="format-ext">MTM</span> - MultiTracker 모듈 포맷</div>
+                <div><span className="format-ext">FAR</span> - Farandole Composer 모듈 포맷</div>
+                <div><span className="format-ext">669</span> - Composer 669 / UNIS 669 모듈 포맷</div>
+                <div><span className="format-ext">OKT</span> - Oktalyzer 모듈 포맷</div>
+                <div><span className="format-ext">ULT</span> - Ultra Tracker 모듈 포맷</div>
+                <div><span className="format-ext">MED</span> - OctaMED 모듈 포맷</div>
+                <div><span className="format-ext">PTM</span> - PolyTracker 모듈 포맷</div>
+                <div><span className="format-ext">MDL</span> - DigiTrakker 모듈 포맷</div>
+                <div><span className="format-ext">DMF</span> - X-Tracker 모듈 포맷</div>
+                <div><span className="format-ext">DSM</span> - DSIK 내부 포맷</div>
+                <div><span className="format-ext">AMF</span> - ASYLUM / DSMI 모듈 포맷</div>
+                <div><span className="format-ext">AMS</span> - Velvet Studio / Extreme's Tracker 모듈 포맷</div>
+                <div><span className="format-ext">DBM</span> - DigiBooster Pro 모듈 포맷</div>
+                <div><span className="format-ext">MO3</span> - MO3 압축 모듈 포맷</div>
+                <div><span className="format-ext">UMX</span> - Unreal Music 포맷</div>
+                <div><span className="format-ext">J2B</span> - Galaxy Sound System 포맷</div>
+                <div><span className="format-ext">GDM</span> - General DigiMusic 포맷</div>
               </div>
             </div>
 
@@ -1612,7 +1780,7 @@ export default function MusicPlayer({ titleMap }: MusicPlayerProps) {
             state.isPlaying
               ? format === "VGM" || format === "VGZ"
                 ? `재생중 - ${currentMusicFile?.name || '?'}`
-                : `재생중 - ${currentTrackTitle} (${currentMusicFile?.name || '?'}${currentBnkFile?.name ? ', ' + currentBnkFile.name : ''})`
+                : `재생중 - ${currentTrackTitle} (${currentMusicFile?.name || '?'}${playerType === 'adplug' && currentBnkFile?.name ? ', ' + currentBnkFile.name : ''})`
               : state.isPaused
                 ? "일시정지"
                 : "정지"

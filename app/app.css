@@ -4,17 +4,12 @@
  */
 
 @font-face {
-  font-family: 'DungGeunMo';
-  src: url('/fonts/DungGeunMo.woff') format('woff');
+  font-family: 'NeoDunggeunmo';
+  src: url('https://cdn.jsdelivr.net/gh/neodgm/neodgm-webfont@1.601/neodgm/neodgm.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/neodgm/neodgm-webfont@1.601/neodgm/neodgm.woff') format('woff');
   font-weight: normal;
   font-style: normal;
-}
-
-@font-face {
-  font-family: 'IyagiGGC';
-  src: url('https://cdn.jsdelivr.net/gh/JuwanPark/IyagiGGC@latest/IyagiGGC.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
+  font-display: block;
 }
 
 :root {
@@ -156,7 +151,7 @@ html {
 }
 
 body {
-  font-family: 'IyagiGGC', 'MS Sans Serif', 'Microsoft Sans Serif', sans-serif;
+  font-family: 'NeoDunggeunmo', 'MS Sans Serif', 'Microsoft Sans Serif', sans-serif;
   background: var(--bg-main);
   color: var(--text-main);
   font-size: 16px;
@@ -164,6 +159,11 @@ body {
   font-weight: normal;
   font-style: normal;
   min-height: 100%;
+}
+
+/* 포맷 확장자 스타일 */
+.format-ext {
+  color: #2563eb;
 }
 
 /* === 3D BORDER UTILITIES === */
@@ -279,8 +279,10 @@ body {
   outline: none;
 }
 
-.dos-button:hover:not(:disabled) {
-  background: var(--border-light);
+@media (hover: hover) {
+  .dos-button:hover:not(:disabled) {
+    background: var(--border-light);
+  }
 }
 
 .dos-button:active:not(:disabled) {
@@ -308,9 +310,11 @@ body {
   color: var(--color-white);
 }
 
-.dos-button-play:hover:not(:disabled) {
-  background: var(--color-aqua);
-  color: var(--color-black);
+@media (hover: hover) {
+  .dos-button-play:hover:not(:disabled) {
+    background: var(--color-aqua);
+    color: var(--color-black);
+  }
 }
 
 .dos-button-play:disabled {
@@ -323,9 +327,11 @@ body {
   color: var(--color-white);
 }
 
-.dos-button-pause:hover:not(:disabled) {
-  background: var(--color-silver);
-  color: var(--color-white);
+@media (hover: hover) {
+  .dos-button-pause:hover:not(:disabled) {
+    background: var(--color-silver);
+    color: var(--color-white);
+  }
 }
 
 .dos-button-pause:disabled {
@@ -338,9 +344,11 @@ body {
   color: var(--color-white);
 }
 
-.dos-button-stop:hover:not(:disabled) {
-  background: var(--color-fuchsia);
-  color: var(--color-white);
+@media (hover: hover) {
+  .dos-button-stop:hover:not(:disabled) {
+    background: var(--color-fuchsia);
+    color: var(--color-white);
+  }
 }
 
 .dos-button-stop:disabled {
@@ -379,7 +387,7 @@ body {
 }
 
 .dos-list-item-selected {
-  background: var(--bg-main);
+  background: var(--bg-select);
   color: var(--text-select);
 }
 
@@ -872,14 +880,22 @@ body {
     background: #4a5568;
   }
 
+  /* 프로그레스바 텍스트 - 흰색 고정 */
+  .dos-progress-text {
+    color: #ffffff;
+    mix-blend-mode: normal;
+  }
+
   /* 버튼 스타일 */
   .dos-button {
     color: #f4f4f5;
     background: #252530;
   }
 
-  .dos-button:hover:not(:disabled) {
-    background: #3f3f50;
+  @media (hover: hover) {
+    .dos-button:hover:not(:disabled) {
+      background: #3f3f50;
+    }
   }
 
   .dos-button:disabled {
@@ -954,5 +970,10 @@ body {
   html,
   body {
     background: #18181f;
+  }
+
+  /* 포맷 확장자 - 노란색 */
+  .format-ext {
+    color: #fbbf24;
   }
 }

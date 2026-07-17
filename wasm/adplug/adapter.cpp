@@ -17,6 +17,10 @@
 // Audio buffer size (samples per channel)
 static const int AUDIO_BUFFER_SIZE = 512;
 
+// Fixed-point arithmetic constants (16-bit fractional precision)
+static const int FIXED_POINT_SHIFT = 16;
+static const uint64_t FIXED_POINT_ONE = 1ULL << FIXED_POINT_SHIFT;
+
 // Global state
 static CNemuopl* g_opl = nullptr;
 static CPlayer* g_player = nullptr;
@@ -25,7 +29,7 @@ static int16_t* g_audioBuffer = nullptr;
 static int g_audioBufferLength = 0;
 static unsigned long g_currentPosition = 0;
 static unsigned long g_maxPosition = 0;
-static float g_sampleAccumulator = 0.0f;
+static uint64_t g_sampleAccumulatorFixed = 0;  // Fixed-point accumulator
 static unsigned long g_totalSamplesGenerated = 0;
 static unsigned long g_currentTick = 0; // ISS 가사 동기화용 틱 카운터
 
@@ -41,6 +45,9 @@ struct FileData {
     size_t size;
 };
 static std::map<std::string, FileData> g_files;
+
+// Loop enabled flag (accessible from vgm.cpp)
+bool g_loopEnabled = false;
 
 // Convert filename to lowercase for case-insensitive matching
 static std::string toLower(const std::string& s) {
@@ -63,8 +70,13 @@ static std::string getFilename(const std::string& path) {
 }
 
 // Memory file provider for loading from buffer
+// Tracks allocated buffers to properly free them in close()
 class CProvider_Memory : public CFileProvider
 {
+private:
+    // Map from binistream pointer to its data buffer for proper cleanup
+    mutable std::map<binistream*, uint8_t*> m_streamBuffers;
+
 public:
     CProvider_Memory() {}
 
@@ -95,27 +107,51 @@ public:
         // Create a copy of the data for the stream
         uint8_t* dataCopy = new uint8_t[it->second.size];
         memcpy(dataCopy, it->second.data, it->second.size);
-        return new binisstream(dataCopy, it->second.size);
+        binistream* stream = new binisstream(dataCopy, it->second.size);
+
+        // Track the buffer so we can free it in close()
+        m_streamBuffers[stream] = dataCopy;
+
+        return stream;
     }
 
     virtual void close(binistream* f) const override
     {
         if (f) {
+            // Free the data buffer associated with this stream
+            auto it = m_streamBuffers.find(f);
+            if (it != m_streamBuffers.end()) {
+                delete[] it->second;
+                m_streamBuffers.erase(it);
+            }
             delete f;
         }
+    }
+
+    // Clean up any remaining buffers (called during teardown)
+    void clearBuffers()
+    {
+        for (auto& pair : m_streamBuffers) {
+            delete[] pair.second;
+        }
+        m_streamBuffers.clear();
     }
 };
 
 static CProvider_Memory g_memProvider;
 
-// Helper to calculate samples per tick
-static float getSamplesPerTick()
+// Helper to calculate samples per tick in fixed-point format
+// Returns (sampleRate / refreshRate) * FIXED_POINT_ONE
+static uint64_t getSamplesPerTickFixed()
 {
     if (!g_player) return 0;
-    float refreshRate = g_player->getrefresh();
-    if (refreshRate <= 0) refreshRate = 70.0f; // Default
+    double refreshRate = g_player->getrefresh();
+    if (refreshRate <= 0) refreshRate = 70.0; // Default
 
-    return static_cast<float>(g_sampleRate) / refreshRate;
+    // Calculate in double, then convert to fixed-point once
+    // This single conversion is precise; the accumulation uses integer math
+    double samplesPerTick = static_cast<double>(g_sampleRate) / refreshRate;
+    return static_cast<uint64_t>(samplesPerTick * FIXED_POINT_ONE);
 }
 
 extern "C" {
@@ -129,7 +165,7 @@ int emu_init(int sampleRate)
 {
     // Clean up any existing state
     if (g_player) {
-        delete g_player;
+        delete g_player;  // This should close all streams via file provider
         g_player = nullptr;
     }
     if (g_opl) {
@@ -140,6 +176,9 @@ int emu_init(int sampleRate)
         delete[] g_audioBuffer;
         g_audioBuffer = nullptr;
     }
+
+    // Note: Don't call clearBuffers() here - close() handles buffer cleanup
+    // Calling clearBuffers() while streams might still be open causes garbage audio
 
     // Clear file storage
     for (auto& pair : g_files) {
@@ -156,14 +195,14 @@ int emu_init(int sampleRate)
     }
     g_opl->init();
 
-    // Allocate audio buffer (stereo)
-    g_audioBuffer = new int16_t[AUDIO_BUFFER_SIZE * 2];
+    // Allocate audio buffer (stereo) - zero-initialized to prevent garbage audio
+    g_audioBuffer = new int16_t[AUDIO_BUFFER_SIZE * 2]();
     g_audioBufferLength = 0;
 
     // Reset position and timing
     g_currentPosition = 0;
     g_maxPosition = 0;
-    g_sampleAccumulator = 0.0f;
+    g_sampleAccumulatorFixed = 0;
     g_totalSamplesGenerated = 0;
     g_currentTick = 0;
 
@@ -176,7 +215,7 @@ int emu_init(int sampleRate)
 void emu_teardown()
 {
     if (g_player) {
-        delete g_player;
+        delete g_player;  // This should close all streams via file provider
         g_player = nullptr;
     }
     if (g_opl) {
@@ -187,6 +226,8 @@ void emu_teardown()
         delete[] g_audioBuffer;
         g_audioBuffer = nullptr;
     }
+
+    // Note: Don't call clearBuffers() here - close() handles buffer cleanup
 
     // Clear file storage
     for (auto& pair : g_files) {
@@ -251,7 +292,7 @@ int emu_load_file(const char* filename, const uint8_t* data, int size)
     g_opl->init();
 
     // Reset timing state
-    g_sampleAccumulator = 0.0f;
+    g_sampleAccumulatorFixed = 0;
     g_totalSamplesGenerated = 0;
     g_currentTick = 0;
 
@@ -282,6 +323,7 @@ int emu_load_file(const char* filename, const uint8_t* data, int size)
 /**
  * Generate audio samples
  * Fills the audio buffer with generated samples
+ * Uses fixed-point arithmetic to avoid floating-point precision drift
  * @return 0 while playing, 1 when song ends
  */
 int emu_compute_audio_samples()
@@ -294,8 +336,8 @@ int emu_compute_audio_samples()
     int maxSamples = AUDIO_BUFFER_SIZE;
 
     while (samplesGenerated < maxSamples) {
-        // Generate samples for current tick
-        int samplesToGenerate = static_cast<int>(g_sampleAccumulator);
+        // Generate samples for current tick (extract integer part from fixed-point)
+        int samplesToGenerate = static_cast<int>(g_sampleAccumulatorFixed >> FIXED_POINT_SHIFT);
         if (samplesToGenerate > 0) {
             int remaining = maxSamples - samplesGenerated;
             int toGenerate = samplesToGenerate < remaining ? samplesToGenerate : remaining;
@@ -304,7 +346,8 @@ int emu_compute_audio_samples()
             g_opl->update(&g_audioBuffer[samplesGenerated * 2], toGenerate);
 
             samplesGenerated += toGenerate;
-            g_sampleAccumulator -= static_cast<float>(toGenerate);
+            // Subtract using fixed-point (toGenerate << FIXED_POINT_SHIFT)
+            g_sampleAccumulatorFixed -= (static_cast<uint64_t>(toGenerate) << FIXED_POINT_SHIFT);
         }
 
         // Process next tick
@@ -319,8 +362,8 @@ int emu_compute_audio_samples()
             }
 
             // Get samples per tick AFTER update (refresh rate may change)
-            float samplesPerTick = getSamplesPerTick();
-            g_sampleAccumulator += samplesPerTick;
+            // Integer addition - no precision loss
+            g_sampleAccumulatorFixed += getSamplesPerTickFixed();
         }
     }
 
@@ -428,7 +471,7 @@ void emu_rewind()
         g_player->rewind(-1);
         g_currentPosition = 0;
         g_currentTick = 0;
-        g_sampleAccumulator = 0.0f;
+        g_sampleAccumulatorFixed = 0;
         g_totalSamplesGenerated = 0;
     }
 }
@@ -451,6 +494,24 @@ float emu_get_refresh_rate()
     if (!g_player) return 70.0f;
     float rate = g_player->getrefresh();
     return rate > 0 ? rate : 70.0f;
+}
+
+/**
+ * Set loop enabled flag
+ * @param enabled 1 to enable loop, 0 to disable
+ */
+void emu_set_loop_enabled(int enabled)
+{
+    g_loopEnabled = (enabled != 0);
+}
+
+/**
+ * Get loop enabled flag
+ * @return 1 if loop enabled, 0 if disabled
+ */
+int emu_get_loop_enabled()
+{
+    return g_loopEnabled ? 1 : 0;
 }
 
 } // extern "C"

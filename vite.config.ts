@@ -6,6 +6,6 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   optimizeDeps: {
-    exclude: ['iconv'], // 서버 전용 네이티브 모듈 제외
+    exclude: ['iconv'],
   },
 });
